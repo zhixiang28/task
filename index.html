@@ -944,7 +944,8 @@
   }
 
   function gGroupRow(k, arr){
-    const sps = arr.map(span).filter(Boolean), col = G.collapsed.has(k);
+    // project span covers every task and every sub-task in it
+    const sps = arr.flatMap(t => [t, ...(t.subtasks || [])]).map(span).filter(Boolean), col = G.collapsed.has(k);
     let sum = '', s = '', e = '';
     if (sps.length) {
       s = sps.reduce((m, x) => x.s < m ? x.s : m, sps[0].s); e = sps.reduce((m, x) => x.e > m ? x.e : m, sps[0].e);
