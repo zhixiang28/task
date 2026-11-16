@@ -79,9 +79,9 @@
 
   /* Main */
   main{overflow:auto;display:flex;flex-direction:column}
-  .top{position:sticky;top:0;z-index:5;background:var(--bg);padding:22px 32px 12px;border-bottom:1px solid transparent}
+  .top{position:sticky;top:0;z-index:5;background:var(--bg);padding:20px 32px 12px;border-bottom:1px solid transparent}
   .top.scrolled{border-bottom-color:var(--line)}
-  .titlerow{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px 12px;margin-bottom:14px}
+  .titlerow{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px 12px}
   .titlerow h1{margin:0;font-size:22px;letter-spacing:-.02em}
   .titlerow .sub{color:var(--muted);font-size:13px}
   .titlerow .search{margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;width:200px;outline:none}
@@ -93,7 +93,7 @@
   .hint{display:flex;flex-wrap:wrap;gap:6px;min-height:22px;margin-top:7px;font-size:12px;color:var(--faint);align-items:center}
   .hint code{font-family:var(--mono);font-size:11px;background:rgba(127,127,120,.12);padding:1px 5px;border-radius:4px;color:var(--muted)}
   .chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:11.5px;background:rgba(127,127,120,.12);color:var(--muted);white-space:nowrap}
-  .content{padding:8px 32px 80px;flex:1}
+  .content{padding:0 32px 80px;flex:1}
 
   /* List */
   .group{margin-top:18px}
@@ -138,12 +138,18 @@
   .connecting{color:var(--faint);padding:40px 0;text-align:center}
 
   /* Board */
-  .board{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;margin-top:14px;align-items:start}
+  .board{display:grid;grid-template-columns:repeat(4,minmax(215px,1fr));gap:12px;margin-top:4px;align-items:start;overflow-x:auto;padding-bottom:6px}
   .col{background:var(--side);border:1px solid var(--line);border-radius:11px;padding:10px;min-height:200px}
   .col.over{border-color:var(--accent);background:var(--accent-soft)}
   .col h3{margin:2px 4px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:flex;gap:8px}
   .col h3 .n{font-family:var(--mono);color:var(--faint);font-weight:500}
-  .col .task{margin-bottom:8px}
+  .col .task{margin-bottom:8px;padding:10px 10px 10px 12px;gap:10px}
+  .col .meta{gap:5px 8px}
+  .col .cl{margin:6px 0 0 -30px}
+  .col .cl .ck{display:grid;grid-template-columns:16px 1fr;column-gap:8px;row-gap:1px;align-items:start;padding:4px 6px}
+  .col .cl .box{margin-top:1px}
+  .col .cl small{grid-column:2;justify-self:start}
+  .col .ttl{line-height:1.35}
   .task.dragging{opacity:.4}
 
   /* Drawer */
@@ -188,6 +194,11 @@
   .tcaret.none{visibility:hidden}
   .num.derived{font-style:italic;opacity:.75}
   .sumbar.task{opacity:.4;top:14px;height:7px}
+  .gray{position:absolute;top:8px;height:20px;border-radius:5px;pointer-events:none;background:repeating-linear-gradient(45deg,rgba(127,127,120,.22) 0 5px,rgba(127,127,120,.11) 5px 10px)}
+  .gsub .gray{top:9px;height:12px;border-radius:4px}
+  .bar.pin{min-width:10px;z-index:2}
+  .bar.pin.due{border-radius:3px 9px 9px 3px} .bar.pin.start{border-radius:9px 3px 3px 9px}
+  .num.none{color:var(--faint)}
   .subadd{display:flex;gap:6px;margin-top:4px}
   .subadd input{flex:1}
   .dfoot{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);align-items:center;font-size:12px;color:var(--faint)}
@@ -228,7 +239,7 @@
 
   /* Timeline (Gantt) */
   .content.tl{padding-bottom:16px}
-  .gtool{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:12px 0 10px}
+  .gtool{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:4px 0 10px}
   .gtool .sp{flex:1}
   .gtool label{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none}
   .gtool .ghelp{font-size:12px;color:var(--faint);width:100%}
@@ -322,7 +333,7 @@
     .titlerow .search{width:112px}
     .vtabs{order:5}
     .toast{bottom:calc(76px + env(safe-area-inset-bottom))}
-    .board{grid-template-columns:repeat(4,240px);overflow-x:auto}
+    .board{grid-template-columns:repeat(4,82vw);scroll-snap-type:x mandatory} .col{scroll-snap-align:start}
   }
 </style>
 </head>
@@ -336,12 +347,6 @@
         <h1 id="vtitle">Tasks</h1><span class="sub" id="vsub"></span><div class="vtabs" id="vtabs"></div>
         <div class="search-wrap"><span class="ico"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg></span><input class="search" id="search" placeholder="Search  /" autocomplete="off"></div>
       </div>
-      <form class="quick" id="quick">
-        <input id="qa" placeholder="Add a task — e.g. Order 5mm acrylic tmr #cradle !1" autocomplete="off">
-        <button type="button" class="more" id="qmore" title="Open the full form (Shift+N)">Details…</button>
-        <button type="submit">Add</button>
-      </form>
-      <div class="hint" id="hint"></div>
       <div id="bannerSlot"></div>
     </div>
     <div class="content" id="content"><div class="connecting">Loading your tasks…</div></div>
@@ -644,7 +649,7 @@
     const online = state.mode === 'db' && syncState === 'ok';
     $('#side').innerHTML = `
       <div class="brand"><span class="logo">✓</span>Tasks</div>
-      <button class="newbtn" id="newTask" title="New task (Shift+N)">${ico('plus')}New task<kbd>⇧N</kbd></button>
+      <button class="newbtn" id="newTask" title="New task (N)">${ico('plus')}New task<kbd>N</kbd></button>
       <div class="nav">${NAV.map(v => `<button data-view="${v}" class="${cur === v ? 'on' : ''}">${ico(v)}${VIEWS[v].t}${badge(v)}</button>`).join('')}</div>
       <div class="nav"><h4>Projects</h4>${ps.length ? ps.map(([p,n]) =>
         `<button data-project="${esc(p)}" class="${state.project===p?'on':''}"><span class="ico"><span class="dot" style="background:${projColor(p)}"></span></span>${esc(p)}<span class="ct">${n||''}</span></button>`).join('')
@@ -660,6 +665,7 @@
     const meta = [];
     if (t.status === 'doing') meta.push(`<span class="doing">● Doing</span>`);
     if (t.due) { const d = dueLabel(t.due); meta.push(`<span class="due ${t.status==='done'?'':d.cls}">◷ ${d.txt}</span>`); }
+    else if (t.start) meta.push(`<span title="Start date only">▷ Starts ${fmtD(t.start)}</span>`);
     if (t.project && !state.project) meta.push(`<span class="chip"><span class="dot" style="background:${projColor(t.project)}"></span>${esc(t.project)}</span>`);
     if (t.status === 'waiting') meta.push(`<span class="wait">⏳ ${t.waitingOn ? esc(t.waitingOn) : 'Waiting'}</span>`);
     if (t.priority && t.status !== 'done') meta.unshift(`<span class="ptag p${t.priority}">${['','Low','Medium','High'][t.priority]}</span>`);
@@ -670,7 +676,7 @@
     if (subs.length) {
       const LIM = 5, showAll = state.expanded.has(t.id) || subs.length <= LIM + 1, T = todayStr();
       cl = `<div class="cl">${subs.slice(0, showAll ? subs.length : LIM).map((x, i) => {
-        const sp = span(x), over = sp && !x.done && sp.e < T;
+        const sp = span(x), over = x.due && !x.done && x.due < T;
         return `<button type="button" class="ck ${x.done ? 'd' : ''}" data-ck="${i}" title="${x.done ? 'Mark not done' : 'Mark done'}"><span class="box">${x.done ? '✓' : ''}</span><span class="ckt">${esc(x.t)}</span>${sp ? `<small class="${over ? 'over' : ''}">◷ ${rangeTxt(x)}</small>` : ''}</button>`;
       }).join('')}${showAll ? (subs.length > LIM + 1 ? `<button type="button" class="clmore" data-clmore="1">Show less</button>` : '')
         : `<button type="button" class="clmore" data-clmore="1">+ ${subs.length - LIM} more steps</button>`}</div>`;
@@ -715,12 +721,12 @@
     } else if (state.project) {
       const o = sortTasks(ts.filter(open)), d = ts.filter(t => t.status==='done');
       html = o.length || d.length ? group('Doing', o.filter(t=>t.status==='doing')) + group('To do', o.filter(t=>t.status==='todo' || !t.status)) + group('Waiting', o.filter(t=>t.status==='waiting')) + group('Completed', d.sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)))
-        : empty('No tasks in this project', 'Add one above — the project tag is filled in for you.');
+        : empty('No tasks in this project', 'Click <b>＋ New task</b> — this project is filled in for you.');
     } else if (state.view === 'all') {
       const o = sortTasks(ts.filter(open)), T0 = todayStr();
       const over = o.filter(t => t.due && t.due < T0 && t.status !== 'waiting');
       html = group('Overdue', over, 'overdue') + group('Doing', o.filter(t=>t.status==='doing' && !over.includes(t))) + group('To do', o.filter(t=>(t.status==='todo'||!t.status) && !over.includes(t))) + group('Waiting', o.filter(t=>t.status==='waiting'));
-      if (!o.length) html = empty('No open tasks', 'Type a task in the box above and press Enter.');
+      if (!o.length) html = empty('No open tasks', 'Click <b>＋ New task</b> (or press N) to add one.');
     } else if (state.view === 'waiting') {
       const o = sortTasks(ts.filter(t => t.status === 'waiting'));
       html = o.length ? group('Waiting on someone or something', o) : empty('Nothing blocked', 'Set a task’s status to Waiting when you’re held up by a supplier, an approval or a delivery.');
@@ -791,7 +797,7 @@
       </div>
       <div class="gwrap z${G.zoom}" id="gwrap" style="--dw:${G.dw}px;--gw:${n * G.dw}px"><div class="gin">
         ${gHead()}${rows}
-        ${list.length ? '' : '<div class="gempty">No tasks yet — add one with the box above or “＋ Add task”.</div>'}
+        ${list.length ? '' : '<div class="gempty">No tasks yet — click “＋ Add task” below or press N.</div>'}
         <div class="gtoday" style="left:calc(var(--lw) + ${todayX + G.dw / 2 - 1}px)"></div>
       </div></div>`;
   }
@@ -830,7 +836,19 @@
     const sps = (t.subtasks || []).map(span).filter(Boolean); if (!sps.length) return null;
     return { s: sps.reduce((m, x) => x.s < m ? x.s : m, sps[0].s), e: sps.reduce((m, x) => x.e > m ? x.e : m, sps[0].e) };
   };
-  const rangeTxt = o => { const sp = span(o); if (!sp) return ''; if (sp.s === sp.e) return fmtD(sp.s);
+  const oneDate = o => !!(o.start || o.due) && !(o.start && o.due);   // only a start or only a finish
+  // a lone date: a marker on that day plus a gray band between it and today
+  function pinHtml(o, label, color, done){
+    const field = o.due ? 'due' : 'start', d = o[field], T = todayStr(), di = dIdx(d), ti = dIdx(T);
+    const a = Math.min(di, ti), b = Math.max(di, ti), over = !done && field === 'due' && d < T;
+    const what = field === 'due' ? `due ${fmtD(d)}` : `starts ${fmtD(d)}`;
+    return `<div class="gray" style="left:${a * G.dw}px;width:${(b - a + 1) * G.dw}px"></div><div class="bar pin ${field} ${done ? 'done' : ''} ${over ? 'over' : ''}" data-pin="${field}" style="left:${di * G.dw}px;width:${G.dw}px;--bc:${color}" title="${field === 'due' ? 'Finish date only' : 'Start date only'} — drag to move"><span class="bl" style="left:${(b - di + 1) * G.dw + 7}px">${esc(label)} · ${what}</span></div>`;
+  }
+  const dateCols = o => {   // Start / Finish / Dur cells, showing only the dates that are actually set
+    const c = v => `<div class="num ${v ? '' : 'none'}">${v ? fmtD(v) : '—'}</div>`;
+    return c(o.start) + c(o.due) + `<div class="num">${o.start && o.due ? durDays(...Object.values(span(o))) + 'd' : ''}</div>`;
+  };
+  const rangeTxt = o => { const sp = span(o); if (!sp) return ''; if (oneDate(o)) return o.due ? fmtD(o.due) : 'from ' + fmtD(o.start); if (sp.s === sp.e) return fmtD(sp.s);
     const a = parseYmd(sp.s), b = parseYmd(sp.e);
     return a.getMonth() === b.getMonth() ? `${a.getDate()}–${b.getDate()} ${MON[b.getMonth()]}` : `${fmtD(sp.s)} – ${fmtD(sp.e)}`; };
 
@@ -838,11 +856,13 @@
     const own = span(t), done = t.status === 'done', subs = t.subtasks || [];
     const der = own ? null : subSpan(t), sp = own || der, op = subs.length && subsOpen(t);
     const pri = t.priority ? `var(--p${4 - t.priority})` : 'var(--line)';
-    const nc = der ? 'num derived' : 'num';
-    const left = `<div class="gl" data-id="${t.id}" title="${esc(t.title)} — click to edit"><div class="gn" style="padding-left:6px"><span class="tcaret ${subs.length ? '' : 'none'}" data-tog="${t.id}" title="${op ? 'Hide' : 'Show'} checklist">${op ? '▼' : '▶'}</span><span class="dot" style="background:${pri}"></span><span class="${done?'strike':''}">${esc(t.title)}</span></div>
-      <div class="${nc}">${sp ? fmtD(sp.s) : '—'}</div><div class="${nc}">${sp ? fmtD(sp.e) : '—'}</div><div class="${nc}">${sp ? durDays(sp.s, sp.e) + 'd' : ''}</div></div>`;
+    const nc = 'num derived';
+    const cols = der ? `<div class="${nc}">${fmtD(der.s)}</div><div class="${nc}">${fmtD(der.e)}</div><div class="${nc}">${durDays(der.s, der.e)}d</div>` : dateCols(t);
+    const left = `<div class="gl" data-id="${t.id}" title="${esc(t.title)} — click to edit"><div class="gn" style="padding-left:6px"><span class="tcaret ${subs.length ? '' : 'none'}" data-tog="${t.id}" title="${op ? 'Hide' : 'Show'} checklist">${op ? '▼' : '▶'}</span><span class="dot" style="background:${pri}"></span><span class="${done?'strike':''}">${esc(t.title)}</span></div>${cols}</div>`;
     let right;
-    if (own) {
+    if (own && oneDate(t)) {
+      right = `<div class="gr" data-id="${t.id}">${pinHtml(t, t.title, t.project ? projColor(t.project) : 'var(--accent)', done)}</div>`;
+    } else if (own) {
       const x = dIdx(own.s) * G.dw, w = durDays(own.s, own.e) * G.dw;
       const pct = done ? 100 : subs.length ? Math.round(subs.filter(s => s.done).length / subs.length * 100) : 0;
       const over = !done && own.e < todayStr();
@@ -862,9 +882,10 @@
   function gSubRow(t, x, i, todayX){
     const sp = span(x), color = t.project ? projColor(t.project) : 'var(--accent)';
     const left = `<div class="gl" data-id="${t.id}" title="${esc(x.t)} — click to edit the task"><div class="gn"><span class="sk ${x.done ? 'on' : ''}" data-subdone="${i}" data-tid="${t.id}" title="${x.done ? 'Mark not done' : 'Mark done'}">${x.done ? '✓' : ''}</span><span class="${x.done ? 'strike' : ''}">${esc(x.t)}</span></div>
-      <div class="num">${sp ? fmtD(sp.s) : ''}</div><div class="num">${sp ? fmtD(sp.e) : ''}</div><div class="num">${sp ? durDays(sp.s, sp.e) + 'd' : ''}</div></div>`;
-    const over = sp && !x.done && sp.e < todayStr();
-    const right = sp
+      ${sp ? dateCols(x) : '<div class="num"></div><div class="num"></div><div class="num"></div>'}</div>`;
+    const over = x.due && !x.done && x.due < todayStr();
+    const right = sp && oneDate(x) ? `<div class="gr" data-id="${t.id}" data-sub="${i}">${pinHtml(x, x.t, color, x.done)}</div>`
+      : sp
       ? `<div class="gr" data-id="${t.id}" data-sub="${i}"><div class="bar ${x.done ? 'done' : ''} ${over ? 'over' : ''}" style="left:${dIdx(sp.s) * G.dw}px;width:${durDays(sp.s, sp.e) * G.dw}px;--bc:${color}"><div class="hl"></div><div class="hr"></div><span class="bl">${esc(x.t)}</span></div></div>`
       : `<div class="gr unsched" data-id="${t.id}" data-sub="${i}"><span class="hintx" style="left:${todayX + 8}px">No date — click or drag to schedule this step</span></div>`;
     return `<div class="grow gsub">${left}${right}</div>`;
@@ -900,10 +921,10 @@
   }
   window.addEventListener('resize', fitGantt);
 
-  function gtip(e, s, en){
+  function gtip(e, s, en, label){
     const tip = $('#gtip');
     if (!e) { tip.style.display = 'none'; return; }
-    tip.textContent = `${fmtDL(s)} → ${fmtDL(en)} · ${durDays(s, en)} day${durDays(s, en) > 1 ? 's' : ''}`;
+    tip.textContent = en ? `${fmtDL(s)} → ${fmtDL(en)} · ${durDays(s, en)} day${durDays(s, en) > 1 ? 's' : ''}` : `${label}: ${fmtDL(s)}`;
     tip.style.display = 'block';
     tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + 'px';
     tip.style.top = (e.clientY - 38) + 'px';
@@ -943,6 +964,13 @@
     flushTyping();
     const d = state.draft; if (!d) return;
     d.title = (d.title || '').trim();
+    const q = parseQuick(d.title);
+    if (q.title && q.title !== d.title) {
+      d.title = q.title;
+      if (q.due && !d.due) d.due = q.due;
+      if (q.project && !d.project) d.project = q.project;
+      if (q.priority && !d.priority) d.priority = q.priority;
+    }
     if (!d.title) { const f = $('#f_title'); f.classList.add('need'); f.focus(); $('#titleErr').textContent = 'Give the task a name first.'; return; }
     if (d.status === 'done') d.doneAt = Date.now();
     const t = { ...d };
@@ -974,7 +1002,7 @@
     if (D.dataset.for === key) flushTyping();
     const ps = projects().map(([p]) => p);
     const projOpts = ps.map(p => `<option value="${esc(p)}">`).join('');
-    const sp = span(t), dur = sp ? durDays(sp.s, sp.e) : '';
+    const sp = span(t), dur = t.start && t.due ? durDays(sp.s, sp.e) : '';
     const base = new Date(), T = todayStr();
     const qd = [['Today', T], ['Tomorrow', ymd(addDays(base, 1))], ['Friday', ymd(addDays(base, (5 - base.getDay() + 7) % 7))],
       ['Next Monday', ymd(addDays(base, ((8 - base.getDay()) % 7) || 7))], ['In 2 weeks', ymd(addDays(base, 14))]];
@@ -984,7 +1012,7 @@
         : `<span class="chip">${t.status==='done'?'✓ Completed':'Task'}</span><button class="btn sm" data-act="done">${t.status==='done' ? '↺ Reopen' : '✓ Mark complete'}</button>`}
         <button class="x" data-act="close" title="Close (Esc)">×</button></div>
       <div class="dbody">
-        <div><textarea class="dtitle" id="f_title" rows="1" placeholder="What needs to be done?">${esc(t.title)}</textarea><div class="err-msg" id="titleErr"></div></div>
+        <div><textarea class="dtitle" id="f_title" rows="1" placeholder="What needs to be done? (tip: “Order acrylic fri #cradle !1”)">${esc(t.title)}</textarea><div class="err-msg" id="titleErr"></div></div>
         <div class="field"><label>Schedule</label>
           <div class="row3">
             <div class="sl"><span>Start</span><input type="date" id="f_start" value="${t.start||''}"></div>
@@ -992,14 +1020,15 @@
             <div class="sl"><span>Days</span><input type="number" min="1" id="f_dur" value="${dur}" placeholder="–"></div>
           </div>
           <div class="qchips"><span style="font-size:12px;color:var(--faint);align-self:center">Due:</span>${qd.map(([l, v]) => `<button type="button" data-qd="${v}" class="${t.due===v?'on':''}">${l}</button>`).join('')}${t.start || t.due ? '<button type="button" data-qd="">✕ Clear</button>' : ''}</div>
-          ${sp ? `<div class="dur-note">${fmtDL(sp.s)} → ${fmtDL(sp.e)} · shows on the Timeline</div>` : ''}
+          ${!sp ? '' : oneDate(t) ? `<div class="dur-note">${t.due ? `Finish ${fmtDL(t.due)} · no start date` : `Starts ${fmtDL(t.start)} · no finish date`} — shown on the Timeline with a gray band from today</div>`
+            : `<div class="dur-note">${fmtDL(sp.s)} → ${fmtDL(sp.e)} · shows on the Timeline</div>`}
         </div>
         <div class="field"><label>Priority</label><div class="seg pri" id="f_pri">${[0,1,2,3].map(p => `<button type="button" data-p="${p}" class="${(t.priority||0)===p?'on':''}">${p ? `<span class="dot" style="background:var(--p${4-p})"></span>` : ''}${PRI[p]}</button>`).join('')}</div></div>
         <div class="field"><label>Status</label><div class="seg" id="f_status">${STATUSES.map(([s,l]) => `<button type="button" data-s="${s}" class="${(t.status||'todo')===s?'on':''}">${l}</button>`).join('')}</div></div>
         <div class="field" id="waitField" style="${t.status==='waiting'?'':'display:none'}"><label>Waiting on</label><input id="f_wait" placeholder="e.g. Supplier quote, boss approval" value="${esc(t.waitingOn||'')}"></div>
         <div class="field"><label>Project</label><input id="f_proj" list="projList" placeholder="Type a new project, or pick one below" value="${esc(t.project||'')}"><datalist id="projList">${projOpts}</datalist>${prow}</div>
         <div class="field"><label>Checklist</label><div class="subs" id="subs">${(t.subtasks||[]).map((s,i) => {
-            const has = !!(s.start || s.due), over = has && !s.done && span(s).e < T, isOpen = state.subOpen === i;
+            const has = !!(s.start || s.due), over = !!s.due && !s.done && s.due < T, isOpen = state.subOpen === i;
             return `<div class="s ${s.done?'d':''}"><input type="checkbox" data-i="${i}" ${s.done?'checked':''}><span class="stxt">${esc(s.t)}</span>
               <button type="button" class="sdate ${has?'set':''} ${over?'over':''} ${isOpen?'open':''}" data-sd="${i}" title="Set dates for this step">${has ? '◷ ' + rangeTxt(s) : '＋ Date'}</button>
               <button type="button" class="rm" data-rm="${i}" title="Remove">×</button></div>
@@ -1062,26 +1091,11 @@
     toastT = setTimeout(() => el.classList.remove('show'), act ? 5000 : 2200);
   }
   function banner(msg){ $('#bannerSlot').innerHTML = msg ? `<div class="banner">${esc(msg)}</div>` : ''; }
-  function renderHint(){
-    const v = $('#qa').value;
-    if (!v.trim()) {
-      $('#hint').innerHTML = document.activeElement === $('#qa')
-        ? `<span>Shortcuts:</span><code>tmr</code><code>fri</code><code>25/12</code><code>in3d</code><span>for dates ·</span><code>#project</code><span>·</span><code>!1</code><span>high priority · or</span><button type="button" id="hintMore" style="background:none;border:0;padding:0;color:var(--accent);font-size:12px">open the full form</button>`
-        : '';
-      return;
-    }
-    const p = parseQuick(v), bits = [];
-    if (p.due) bits.push(`<span class="chip">◷ ${dueLabel(p.due).txt}</span>`);
-    const proj = p.project || state.project;
-    if (proj) bits.push(`<span class="chip"><span class="dot" style="background:${projColor(proj)}"></span>${esc(proj)}</span>`);
-    if (p.priority) bits.push(`<span class="chip" style="color:var(--p${4-p.priority})">● ${PRI[p.priority]}</span>`);
-    $('#hint').innerHTML = bits.join('') || '<span>Press Enter to add</span>';
-  }
   function go(view, project = null){
     if (view !== state.view) G.didScroll = false;
     state.view = view; state.project = project;
     if (!project) { try { history.replaceState(null, '', '#' + view); } catch(e){} }
-    renderHint(); render();
+    render();
   }
 
   // ---------- events ----------
@@ -1099,20 +1113,7 @@
   $('#sidescrim').addEventListener('click', () => sideOpen(false));
   $('#tabbar').addEventListener('click', e => { const b = e.target.closest('[data-view]'); if (b) go(b.dataset.view); });
   $('#fab').addEventListener('click', () => openCreate());
-  $('#hint').addEventListener('mousedown', e => { if (e.target.id === 'hintMore') { e.preventDefault(); $('#qmore').click(); } });
-  $('#qa').addEventListener('focus', renderHint); $('#qa').addEventListener('blur', () => setTimeout(renderHint, 150));
   $('#scrim').addEventListener('click', () => closeDrawer());
-  $('#quick').addEventListener('submit', e => { e.preventDefault(); const v = $('#qa').value; if (!v.trim()) return; addTask(v); $('#qa').value = ''; renderHint(); });
-  $('#qmore').addEventListener('click', () => {
-    const p = parseQuick($('#qa').value), pre = {};
-    if (p.title) pre.title = p.title;
-    if (p.project) pre.project = p.project;
-    if (p.priority) pre.priority = p.priority;
-    if (p.due) pre.due = p.due;
-    $('#qa').value = ''; renderHint();
-    openCreate(pre);
-  });
-  $('#qa').addEventListener('input', renderHint);
   $('#search').addEventListener('input', e => { state.search = e.target.value.trim(); renderMain(); });
   $('#main').addEventListener('scroll', () => $('#top').classList.toggle('scrolled', $('#main').scrollTop > 4));
 
@@ -1171,7 +1172,7 @@
     const obj = si == null ? t : (t.subtasks || [])[si]; if (!obj) return;
     const bar = e.target.closest('.bar'), sp = span(obj);
     let mode;
-    if (bar) mode = e.target.closest('.hl') ? 'l' : e.target.closest('.hr') ? 'r' : 'move';
+    if (bar) mode = bar.dataset.pin ? 'pin' : e.target.closest('.hl') ? 'l' : e.target.closest('.hr') ? 'r' : 'move';
     else if (!sp && !gr.dataset.nocreate) mode = 'create';
     else return;
     if (bar) e.preventDefault();
@@ -1182,7 +1183,7 @@
       el = document.createElement('div'); el.className = 'bar ghost'; el.style.display = 'none';
       gr.appendChild(el);
     }
-    gdrag = { id:t.id, si, mode, x0:e.clientX, rect, day0, moved:false, el, gr, pid:e.pointerId,
+    gdrag = { id:t.id, si, mode, pin: bar && bar.dataset.pin, gray: gr.querySelector('.gray'), x0:e.clientX, rect, day0, moved:false, el, gr, pid:e.pointerId,
       s0: sp ? dIdx(sp.s) : day0, e0: sp ? dIdx(sp.e) : day0, s: sp ? dIdx(sp.s) : day0, e: sp ? dIdx(sp.e) : day0 };
     if (bar) { try { gr.setPointerCapture(e.pointerId); } catch(_){} }
   });
@@ -1191,12 +1192,17 @@
     if (!g.moved && Math.abs(e.clientX - g.x0) < 4) return;
     if (!g.moved) { g.moved = true; g.el.classList.add('drag'); g.el.style.display = ''; try { g.gr.setPointerCapture(e.pointerId); } catch(_){} }
     const dd = Math.round((e.clientX - g.x0) / G.dw);
-    if (g.mode === 'move') { g.s = g.s0 + dd; g.e = g.e0 + dd; }
+    if (g.mode === 'move' || g.mode === 'pin') { g.s = g.s0 + dd; g.e = g.e0 + dd; }
     else if (g.mode === 'l') { g.s = Math.min(g.s0 + dd, g.e0); g.e = g.e0; }
     else if (g.mode === 'r') { g.e = Math.max(g.e0 + dd, g.s0); g.s = g.s0; }
     else { const d = Math.floor((e.clientX - g.rect.left) / G.dw); g.s = Math.min(g.day0, d); g.e = Math.max(g.day0, d); }
     g.el.style.left = g.s * G.dw + 'px'; g.el.style.width = (g.e - g.s + 1) * G.dw + 'px';
-    gtip(e, ymd(addDays(G.start, g.s)), ymd(addDays(G.start, g.e)));
+    if (g.mode === 'pin') {
+      const ti = dIdx(todayStr()), a = Math.min(g.s, ti), b = Math.max(g.s, ti);
+      if (g.gray) { g.gray.style.left = a * G.dw + 'px'; g.gray.style.width = (b - a + 1) * G.dw + 'px'; }
+      const bl = g.el.querySelector('.bl'); if (bl) bl.style.left = (b - g.s + 1) * G.dw + 7 + 'px';
+      gtip(e, ymd(addDays(G.start, g.s)), null, g.pin === 'due' ? 'Finish' : 'Start');
+    } else gtip(e, ymd(addDays(G.start, g.s)), ymd(addDays(G.start, g.e)));
   });
   function endDrag(e, cancel){
     const g = gdrag; if (!g || e.pointerId !== g.pid) return;
@@ -1207,15 +1213,21 @@
     const start = ymd(addDays(G.start, g.s)), due = ymd(addDays(G.start, g.e));
     pendingRender = false;
     const obj = g.si == null ? t : (t.subtasks || [])[g.si];
-    if (!obj || (start === obj.start && due === obj.due)) { renderMain(); return; }
-    const withDates = (task, o, st, du) => g.si == null ? { ...task, start:st, due:du }
-      : { ...task, subtasks: task.subtasks.map((x, i) => i === g.si ? { ...x, start:st, due:du } : { ...x }) };
-    Store.put(withDates(t, obj, start, due));
+    if (!obj) { renderMain(); return; }
+    let patch, msg;
+    if (g.mode === 'pin') { patch = { [g.pin]: start }; msg = `${g.pin === 'due' ? 'Finish' : 'Start'} ${fmtD(start)}`; }
+    else if (g.mode === 'create' && !g.moved) { patch = { due: start }; msg = `Finish ${fmtD(start)}`; }
+    else { patch = { start, due }; msg = `${fmtD(start)} → ${fmtD(due)}`; }
+    if (Object.keys(patch).every(k => (obj[k] || null) === patch[k])) { renderMain(); return; }
+    const undo = Object.fromEntries(Object.keys(patch).map(k => [k, obj[k] || null]));
+    const apply = (task, pt) => g.si == null ? { ...task, ...pt }
+      : { ...task, subtasks: task.subtasks.map((x, i) => i === g.si ? { ...x, ...pt } : { ...x }) };
+    Store.put(apply(t, patch));
     if (state.openId === g.id) renderDrawer();
-    toast(`${obj.t || obj.title}: ${fmtD(start)} → ${fmtD(due)}`, 'Undo', () => {
+    toast(`${obj.t || obj.title}: ${msg}`, 'Undo', () => {
       const c = state.tasks.get(g.id); if (!c) return;
       if (g.si != null && !(c.subtasks || [])[g.si]) return;
-      Store.put(withDates(c, obj, obj.start || null, obj.due || null)); if (state.openId === g.id) renderDrawer(); });
+      Store.put(apply(c, undo)); if (state.openId === g.id) renderDrawer(); });
   }
   document.addEventListener('pointerup', e => endDrag(e, false));
   document.addEventListener('pointercancel', e => endDrag(e, true));
@@ -1300,7 +1312,8 @@
     const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
     if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === 'N') { e.preventDefault(); openCreate(); return; }
-    if (e.key === 'n' || e.key === '/') { e.preventDefault(); (e.key === '/' ? $('#search') : $('#qa')).focus(); }
+    if (e.key === 'n') { e.preventDefault(); openCreate(); return; }
+    if (e.key === '/') { e.preventDefault(); $('#search').focus(); }
   });
   function flushTyping(){
     clearTimeout(typingTimer);
@@ -1322,7 +1335,7 @@
   // ---------- boot ----------
   const h = (location.hash || '').slice(1);
   state.view = VIEWS[h] ? h : 'all';
-  renderHint(); render();
+  render();
   connect();
 })();
 </script>
