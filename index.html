@@ -132,6 +132,27 @@
   .cl .ckt{flex:1;min-width:0;word-wrap:break-word}
   .cl .ck.d .ckt{text-decoration:line-through;color:var(--faint)}
   .cl small{font-size:11px;color:var(--muted);white-space:nowrap} .cl small.over{color:var(--p1);font-weight:600}
+  .spill{border:0;border-radius:99px;padding:0 8px;line-height:19px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .spill.s-todo{background:rgba(127,127,120,.13);color:var(--muted)}
+  .spill.s-doing{background:var(--accent-soft);color:var(--accent)}
+  .spill.s-waiting{background:rgba(142,78,198,.13);color:var(--wait)}
+  .spill.s-done{background:rgba(43,154,102,.14);color:var(--ok)}
+  .spill:hover{filter:brightness(.95)}
+  .menu{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:4px;min-width:150px}
+  .menu button{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;padding:7px 10px;border-radius:7px;text-align:left;font-size:13px}
+  .menu button:hover{background:rgba(127,127,120,.1)}
+  .menu button.on{font-weight:600}
+  .menu button.on:after{content:'✓';margin-left:auto;color:var(--accent)}
+  .menu i{width:9px;height:9px;border-radius:50%}
+  .menu .s-todo{background:var(--faint)} .menu .s-doing{background:var(--accent)} .menu .s-waiting{background:var(--wait)} .menu .s-done{background:var(--ok)}
+  .addsub{background:none;border:0;color:var(--faint);font-size:12px;padding:4px 6px;text-align:left;align-self:flex-start;border-radius:6px}
+  .addsub:hover{color:var(--accent);background:rgba(127,127,120,.08)}
+  .task:not(:hover) .addsub.ghost{opacity:0}
+  .addsub.inl{padding:0 6px;line-height:19px}
+  @media (hover:none){.addsub.ghost{display:none}}
+  .cladd{display:flex;align-items:center;gap:9px;padding:3px 6px}
+  .cladd .box{border-style:dashed}
+  .cladd input{flex:1;border:0;border-bottom:1px solid var(--accent);background:none;outline:none;padding:3px 0;font-size:13px}
   .cl .clmore{background:none;border:0;color:var(--accent);font-size:12px;padding:3px 6px;text-align:left;align-self:flex-start}
   .empty{text-align:center;color:var(--faint);padding:60px 20px}
   .empty b{display:block;font-size:15px;color:var(--muted);margin-bottom:4px}
@@ -169,7 +190,15 @@
   .seg button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);font-weight:600}
   .subs .s{display:flex;align-items:center;gap:8px;padding:4px 0}
   .subs .s input[type=checkbox]{width:16px;height:16px;accent-color:var(--ok)}
-  .subs .s .stxt{flex:1;min-width:0;word-wrap:break-word} .subs .s.d .stxt{text-decoration:line-through;color:var(--faint)}
+  .field .subs .stitle{flex:1;min-width:0;width:auto;border:1px solid transparent;background:none;border-radius:6px;padding:3px 6px;margin-left:-4px}
+  .field .subs .stitle:hover{border-color:var(--line)}
+  .field .subs .stitle:focus{border-color:var(--accent);background:var(--bg)}
+  .subs .s.d .stitle{text-decoration:line-through;color:var(--faint)}
+  .subs .grip{cursor:grab;color:var(--faint);font-size:11px;letter-spacing:-2px;padding:0 2px;opacity:.5;user-select:none}
+  .subs .s:hover .grip{opacity:1}
+  .subs .s.dragging{opacity:.4}
+  .subs .s.dropb{box-shadow:inset 0 2px 0 var(--accent)} .subs .s.dropa{box-shadow:inset 0 -2px 0 var(--accent)}
+  .field label .lc{text-transform:none;letter-spacing:0;font-weight:500;margin-left:6px;color:var(--muted)}
   .subs .s .rm{background:none;border:0;color:var(--faint);opacity:0}
   .subs .s:hover .rm{opacity:1}
   .subs .sdate{flex:none;border:1px dashed var(--line);background:none;border-radius:99px;padding:1px 9px;font-size:11.5px;color:var(--faint);white-space:nowrap}
@@ -443,7 +472,7 @@
   }
 
   // ---------- state ----------
-  const state = { tasks:new Map(), view:'all', sort:(() => { try { return localStorage.getItem('tm.sort') || 'priority'; } catch(e){ return 'priority'; } })(), expanded:new Set(), project:null, search:'', openId:null, mode:'loading' };
+  const state = { tasks:new Map(), view:'all', addingSub:null, sort:(() => { try { return localStorage.getItem('tm.sort') || 'priority'; } catch(e){ return 'priority'; } })(), expanded:new Set(), project:null, search:'', openId:null, mode:'loading' };
   const PRI = {3:'High',2:'Medium',1:'Low',0:'None'};
   const projHue = name => { let h = 0; for (const c of name) h = (h*31 + c.charCodeAt(0)) % 360; return h; };
   const projColor = name => `hsl(${projHue(name)} 60% 52%)`;
@@ -663,23 +692,29 @@
 
   function taskRow(t, opts = {}){
     const meta = [];
-    if (t.status === 'doing') meta.push(`<span class="doing">● Doing</span>`);
+    const st = t.status || 'todo', stl = STATUSES.find(x => x[0] === st)[1];
+    meta.push(`<button type="button" class="spill s-${st}" data-act="status" title="Change status">${st === 'waiting' && t.waitingOn ? '⏳ ' + esc(t.waitingOn) : stl} ▾</button>`);
     if (t.due) { const d = dueLabel(t.due); meta.push(`<span class="due ${t.status==='done'?'':d.cls}">◷ ${d.txt}</span>`); }
     else if (t.start) meta.push(`<span title="Start date only">▷ Starts ${fmtD(t.start)}</span>`);
     if (t.project && !state.project) meta.push(`<span class="chip"><span class="dot" style="background:${projColor(t.project)}"></span>${esc(t.project)}</span>`);
-    if (t.status === 'waiting') meta.push(`<span class="wait">⏳ ${t.waitingOn ? esc(t.waitingOn) : 'Waiting'}</span>`);
-    if (t.priority && t.status !== 'done') meta.unshift(`<span class="ptag p${t.priority}">${['','Low','Medium','High'][t.priority]}</span>`);
+    if (t.priority && t.status !== 'done') meta.splice(1, 0, `<span class="ptag p${t.priority}">${['','Low','Medium','High'][t.priority]}</span>`);
     const subs = t.subtasks || [];
-    if (subs.length) meta.push(`<span class="prog" title="${subs.filter(s=>s.done).length} of ${subs.length} steps done"><i style="width:${Math.round(subs.filter(s=>s.done).length / subs.length * 100)}%"></i></span><span>${subs.filter(s=>s.done).length}/${subs.length}</span>`);
+    if (subs.length) meta.push(`<span class="prog" title="${subs.filter(s=>s.done).length} of ${subs.length} sub-tasks done"><i style="width:${Math.round(subs.filter(s=>s.done).length / subs.length * 100)}%"></i></span><span>${subs.filter(s=>s.done).length}/${subs.length}</span>`);
     if (t.notes) meta.push(`<span title="Has notes">✎</span>`);
     let cl = '';
+    const adding = state.addingSub === t.id;
+    const addRow = t.status === 'done' ? '' : adding
+      ? `<form class="cladd" data-addsub="${t.id}"><span class="box"></span><input id="claddInput" placeholder="Sub-task name — e.g. Cut panels fri · Enter to add, Esc to stop" autocomplete="off"></form>`
+      : `<button type="button" class="addsub ${subs.length ? '' : 'ghost'}" data-addsubbtn="1">＋ Add sub-task</button>`;
+    if (!subs.length && adding) cl = `<div class="cl">${addRow}</div>`;
+    else if (!subs.length && addRow) meta.push(`<button type="button" class="addsub ghost inl" data-addsubbtn="1">＋ Sub-task</button>`);
     if (subs.length) {
       const LIM = 5, showAll = state.expanded.has(t.id) || subs.length <= LIM + 1, T = todayStr();
       cl = `<div class="cl">${subs.slice(0, showAll ? subs.length : LIM).map((x, i) => {
         const sp = span(x), over = x.due && !x.done && x.due < T;
         return `<button type="button" class="ck ${x.done ? 'd' : ''}" data-ck="${i}" title="${x.done ? 'Mark not done' : 'Mark done'}"><span class="box">${x.done ? '✓' : ''}</span><span class="ckt">${esc(x.t)}</span>${sp ? `<small class="${over ? 'over' : ''}">◷ ${rangeTxt(x)}</small>` : ''}</button>`;
       }).join('')}${showAll ? (subs.length > LIM + 1 ? `<button type="button" class="clmore" data-clmore="1">Show less</button>` : '')
-        : `<button type="button" class="clmore" data-clmore="1">+ ${subs.length - LIM} more steps</button>`}</div>`;
+        : `<button type="button" class="clmore" data-clmore="1">+ ${subs.length - LIM} more sub-tasks</button>`}${addRow}</div>`;
     }
     return `<div class="task ${t.status==='done'?'done':''} ${state.openId===t.id?'sel':''}" data-id="${t.id}" ${opts.drag?'draggable="true"':''}>
       <button class="check p${t.priority||0}" data-act="toggle" title="Mark done">${t.status==='done'?'✓':''}</button>
@@ -738,6 +773,7 @@
     if (sortable && html && !html.startsWith('<div class="empty"')) html = `<div class="listbar"><span>Sort by</span><div class="zseg">${Object.entries(SORTS).map(([k, l]) =>
       `<button data-sort="${k}" class="${state.sort===k?'on':''}">${l}</button>`).join('')}</div></div>` + html;
     el.innerHTML = html;
+    if (state.addingSub) { const i = $('#claddInput'); if (i) i.focus({ preventScroll:true }); }
   }
 
   // ---------- timeline (Gantt) ----------
@@ -830,9 +866,9 @@
       <div class="gr"><div class="gh1">${top}</div><div class="gh2">${bot}</div></div></div>`;
   }
 
-  // checklist rows open by default once any step has a date
+  // sub-task rows open by default once any sub-task has a date
   const subsOpen = t => G.subOpen.has(t.id) ? G.subOpen.get(t.id) : (t.subtasks || []).some(x => x.start || x.due);
-  const subSpan = t => {   // range covered by a task's dated checklist steps
+  const subSpan = t => {   // range covered by a task's dated sub-tasks
     const sps = (t.subtasks || []).map(span).filter(Boolean); if (!sps.length) return null;
     return { s: sps.reduce((m, x) => x.s < m ? x.s : m, sps[0].s), e: sps.reduce((m, x) => x.e > m ? x.e : m, sps[0].e) };
   };
@@ -846,7 +882,7 @@
     if (G.sort === 'priority') return (b.priority||0) - (a.priority||0) || cmpKey(taskKey(a, 'start'), taskKey(b, 'start')) || (a.createdAt||0) - (b.createdAt||0);
     return cmpKey(taskKey(a, G.sort), taskKey(b, G.sort)) || cmpKey(taskKey(a, other), taskKey(b, other)) || (b.priority||0) - (a.priority||0) || (a.createdAt||0) - (b.createdAt||0);
   }
-  const subOrder = subs => {   // checklist steps by date (keeps their real index for editing)
+  const subOrder = subs => {   // sub-tasks by date (keeps their real index for editing)
     const idx = subs.map((_, i) => i);
     if (G.sort === 'priority') return idx;
     const w = G.sort === 'due' ? 'due' : 'start', o = w === 'due' ? 'start' : 'due';
@@ -874,7 +910,7 @@
     const pri = t.priority ? `var(--p${4 - t.priority})` : 'var(--line)';
     const nc = 'num derived';
     const cols = der ? `<div class="${nc}">${fmtD(der.s)}</div><div class="${nc}">${fmtD(der.e)}</div><div class="${nc}">${durDays(der.s, der.e)}d</div>` : dateCols(t);
-    const left = `<div class="gl" data-id="${t.id}" title="${esc(t.title)} — click to edit"><div class="gn" style="padding-left:6px"><span class="tcaret ${subs.length ? '' : 'none'}" data-tog="${t.id}" title="${op ? 'Hide' : 'Show'} checklist">${op ? '▼' : '▶'}</span><span class="dot" style="background:${pri}"></span><span class="${done?'strike':''}">${esc(t.title)}</span></div>${cols}</div>`;
+    const left = `<div class="gl" data-id="${t.id}" title="${esc(t.title)} — click to edit"><div class="gn" style="padding-left:6px"><span class="tcaret ${subs.length ? '' : 'none'}" data-tog="${t.id}" title="${op ? 'Hide' : 'Show'} sub-tasks">${op ? '▼' : '▶'}</span><span class="dot" style="background:${pri}"></span><span class="${done?'strike':''}">${esc(t.title)}</span></div>${cols}</div>`;
     let right;
     if (own && oneDate(t)) {
       right = `<div class="gr" data-id="${t.id}">${pinHtml(t, t.title, t.project ? projColor(t.project) : 'var(--accent)', done)}</div>`;
@@ -885,7 +921,7 @@
       right = `<div class="gr" data-id="${t.id}"><div class="bar ${done?'done':''} ${over?'over':''}" style="left:${x}px;width:${w}px;--bc:${t.project ? projColor(t.project) : 'var(--accent)'}">
         ${pct ? `<div class="pg" style="width:${pct}%"></div>` : ''}<div class="hl"></div><div class="hr"></div><span class="bl">${esc(t.title)}${pct && !done ? ` · ${pct}%` : ''}</span></div></div>`;
     } else if (der) {
-      // no dates of its own: show the span of its checklist like a summary task
+      // no dates of its own: show the span of its sub-tasks like a summary task
       right = `<div class="gr" data-id="${t.id}" data-nocreate="1"><div class="sumbar task" style="left:${dIdx(der.s) * G.dw}px;width:${durDays(der.s, der.e) * G.dw}px"></div></div>`;
     } else {
       right = `<div class="gr unsched" data-id="${t.id}"><span class="hintx" style="left:${todayX + 8}px">Not scheduled — click or drag here to set dates</span></div>`;
@@ -903,7 +939,7 @@
     const right = sp && oneDate(x) ? `<div class="gr" data-id="${t.id}" data-sub="${i}">${pinHtml(x, x.t, color, x.done)}</div>`
       : sp
       ? `<div class="gr" data-id="${t.id}" data-sub="${i}"><div class="bar ${x.done ? 'done' : ''} ${over ? 'over' : ''}" style="left:${dIdx(sp.s) * G.dw}px;width:${durDays(sp.s, sp.e) * G.dw}px;--bc:${color}"><div class="hl"></div><div class="hr"></div><span class="bl">${esc(x.t)}</span></div></div>`
-      : `<div class="gr unsched" data-id="${t.id}" data-sub="${i}"><span class="hintx" style="left:${todayX + 8}px">No date — click or drag to schedule this step</span></div>`;
+      : `<div class="gr unsched" data-id="${t.id}" data-sub="${i}"><span class="hintx" style="left:${todayX + 8}px">No date — click or drag to schedule this sub-task</span></div>`;
     return `<div class="grow gsub">${left}${right}</div>`;
   }
 
@@ -1043,15 +1079,15 @@
         <div class="field"><label>Status</label><div class="seg" id="f_status">${STATUSES.map(([s,l]) => `<button type="button" data-s="${s}" class="${(t.status||'todo')===s?'on':''}">${l}</button>`).join('')}</div></div>
         <div class="field" id="waitField" style="${t.status==='waiting'?'':'display:none'}"><label>Waiting on</label><input id="f_wait" placeholder="e.g. Supplier quote, boss approval" value="${esc(t.waitingOn||'')}"></div>
         <div class="field"><label>Project</label><input id="f_proj" list="projList" placeholder="Type a new project, or pick one below" value="${esc(t.project||'')}"><datalist id="projList">${projOpts}</datalist>${prow}</div>
-        <div class="field"><label>Checklist</label><div class="subs" id="subs">${(t.subtasks||[]).map((s,i) => {
+        <div class="field"><label>Sub-tasks${(t.subtasks||[]).length ? `<span class="lc">${t.subtasks.filter(x=>x.done).length} of ${t.subtasks.length} done</span>` : ''}</label><div class="subs" id="subs">${(t.subtasks||[]).map((s,i) => {
             const has = !!(s.start || s.due), over = !!s.due && !s.done && s.due < T, isOpen = state.subOpen === i;
-            return `<div class="s ${s.done?'d':''}"><input type="checkbox" data-i="${i}" ${s.done?'checked':''}><span class="stxt">${esc(s.t)}</span>
-              <button type="button" class="sdate ${has?'set':''} ${over?'over':''} ${isOpen?'open':''}" data-sd="${i}" title="Set dates for this step">${has ? '◷ ' + rangeTxt(s) : '＋ Date'}</button>
+            return `<div class="s ${s.done?'d':''}" data-row="${i}"><span class="grip" draggable="true" title="Drag to reorder">⋮⋮</span><input type="checkbox" data-i="${i}" ${s.done?'checked':''}><input class="stitle" data-st="${i}" value="${esc(s.t)}" title="Click to rename">
+              <button type="button" class="sdate ${has?'set':''} ${over?'over':''} ${isOpen?'open':''}" data-sd="${i}" title="Set dates for this sub-task">${has ? '◷ ' + rangeTxt(s) : '＋ Date'}</button>
               <button type="button" class="rm" data-rm="${i}" title="Remove">×</button></div>
             ${isOpen ? `<div class="sdrow"><label>Start<input type="date" data-ss="${i}" value="${s.start||''}"></label><label>Finish<input type="date" data-se="${i}" value="${s.due||''}"></label>
               <div class="qchips">${qd.slice(0,4).map(([l, v]) => `<button type="button" data-sq="${i}" data-v="${v}" class="${s.due===v && !s.start?'on':''}">${l}</button>`).join('')}${has ? `<button type="button" data-sq="${i}" data-v="">✕ Clear</button>` : ''}</div></div>` : ''}`;
           }).join('')}</div>
-          <form class="subadd" id="subadd"><input id="f_sub" placeholder="Add a step — e.g. Cut panels fri" autocomplete="off"><button class="btn" type="submit">Add</button></form></div>
+          <form class="subadd" id="subadd"><input id="f_sub" placeholder="Add a sub-task — e.g. Cut panels fri" autocomplete="off"><button class="btn" type="submit">Add</button></form></div>
         <div class="field"><label>Notes</label><textarea id="f_notes" placeholder="Links, part numbers, measurements…">${esc(t.notes||'')}</textarea></div>
       </div>
       <div class="dfoot">${c
@@ -1086,16 +1122,55 @@
     Store.put(t);
     toast(`Added${t.due ? ' · ' + dueLabel(t.due).txt : ''}${t.project ? ' · #' + t.project : ''}`);
   }
+  // ---------- workflow ----------
+  // completing a task also ticks off its open sub-tasks (undoable); reopening goes back to Doing if work was started
   function toggleDone(id){
     const t = state.tasks.get(id); if (!t) return;
-    const done = t.status !== 'done';
-    Store.put({ ...t, status: done ? 'done' : 'todo', doneAt: done ? Date.now() : null, star: done ? false : t.star });
+    const done = t.status !== 'done', subs = t.subtasks || [];
+    const openSubs = done ? subs.filter(x => !x.done).length : 0;
+    Store.put({ ...t, status: done ? 'done' : (subs.some(x => x.done) ? 'doing' : 'todo'), doneAt: done ? Date.now() : null, star: done ? false : t.star,
+      subtasks: subs.map(x => ({ ...x, done: openSubs ? true : x.done })) });
     if (state.openId === id) renderDrawer();
+    if (done) toast(openSubs ? `Completed “${t.title}” and ${openSubs} open sub-task${openSubs > 1 ? 's' : ''}` : `Completed “${t.title}”`,
+      'Undo', () => { Store.put({ ...t, subtasks: subs.map(x => ({...x})) }); if (state.openId === id) renderDrawer(); });
   }
   function setStatus(id, s){
     const t = state.tasks.get(id); if (!t || (t.status||'todo') === s) return;
-    Store.put({ ...t, status:s, doneAt: s==='done' ? Date.now() : null });
+    if (s === 'done') { toggleDone(id); return; }
+    Store.put({ ...t, status:s, doneAt:null });
+    if (state.openId === id) renderDrawer();
   }
+  // ticking a sub-task starts the task; finishing the last one offers to complete it
+  function toggleSub(id, i){
+    const t = state.tasks.get(id); if (!t || !(t.subtasks || [])[i]) return;
+    const subs = t.subtasks.map(x => ({...x})); subs[i].done = !subs[i].done;
+    const n = { ...t, subtasks:subs }, started = subs[i].done && (t.status || 'todo') === 'todo';
+    if (started) n.status = 'doing';
+    Store.put(n);
+    if (state.openId === id) renderDrawer();
+    if (subs[i].done && subs.every(x => x.done) && n.status !== 'done') toast(`All sub-tasks of “${t.title}” are done`, 'Complete task', () => toggleDone(id));
+    else if (started) toast(`Started “${t.title}” — moved to Doing`);
+  }
+  const newSub = text => {   // "Cut panels fri" → sub-task "Cut panels" due Friday
+    const q = parseQuick(text), x = { t: q.title || text.trim(), done:false };
+    if (q.due && q.title) x.due = q.due;
+    return x;
+  };
+  function closeMenu(){ document.getElementById('smenu')?.remove(); }
+  function openStatusMenu(btn, id){
+    closeMenu();
+    const t = state.tasks.get(id); if (!t) return;
+    const m = document.createElement('div'); m.className = 'menu'; m.id = 'smenu';
+    m.innerHTML = STATUSES.map(([k, l]) => `<button type="button" data-ms="${k}" class="${(t.status||'todo') === k ? 'on' : ''}"><i class="s-${k}"></i>${l}</button>`).join('');
+    document.body.appendChild(m);
+    const r = btn.getBoundingClientRect();
+    m.style.left = Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)) + 'px';
+    m.style.top = (r.bottom + m.offsetHeight + 8 > innerHeight ? r.top - m.offsetHeight - 4 : r.bottom + 4) + 'px';
+    m.addEventListener('click', e => { const b = e.target.closest('[data-ms]'); if (!b) return; closeMenu(); setStatus(id, b.dataset.ms); });
+  }
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('#smenu, [data-act="status"]')) closeMenu(); });
+  window.addEventListener('resize', closeMenu);
+  document.getElementById('main').addEventListener('scroll', closeMenu, true);
 
   // ---------- UI helpers ----------
   let toastT;
@@ -1143,7 +1218,7 @@
     const tg = e.target.closest('[data-tog]');
     if (tg) { const t = state.tasks.get(tg.dataset.tog); if (t) { G.subOpen.set(t.id, !subsOpen(t)); renderMain(); } return; }
     const sd = e.target.closest('[data-subdone]');
-    if (sd) { const t = state.tasks.get(sd.dataset.tid); if (t) { const subs = t.subtasks.map(x => ({...x})); subs[+sd.dataset.subdone].done = !subs[+sd.dataset.subdone].done; Store.put({ ...t, subtasks:subs }); if (state.openId === t.id) renderDrawer(); } return; }
+    if (sd) { toggleSub(sd.dataset.tid, +sd.dataset.subdone); return; }
     const gl = e.target.closest('.gl');
     if (gl) {
       if (gl.dataset.id) { openDrawer(gl.dataset.id); return; }
@@ -1161,9 +1236,11 @@
     const row = e.target.closest('.task'); if (!row) return;
     const act = e.target.closest('[data-act]')?.dataset.act, id = row.dataset.id;
     if (act === 'toggle') { e.stopPropagation(); toggleDone(id); return; }
+    if (act === 'status') { const b = e.target.closest('[data-act]'); document.getElementById('smenu') ? closeMenu() : openStatusMenu(b, id); return; }
     const ck = e.target.closest('[data-ck]');
-    if (ck) { const t = state.tasks.get(id); const subs = t.subtasks.map(x => ({...x})); const i = +ck.dataset.ck; subs[i].done = !subs[i].done;
-      Store.put({ ...t, subtasks:subs }); if (state.openId === id) renderDrawer(); return; }
+    if (ck) { toggleSub(id, +ck.dataset.ck); return; }
+    if (e.target.closest('[data-addsubbtn]')) { state.addingSub = id; renderMain(); return; }
+    if (e.target.closest('.cladd')) return;
     if (e.target.closest('[data-clmore]')) { state.expanded.has(id) ? state.expanded.delete(id) : state.expanded.add(id); renderMain(); return; }
     openDrawer(id);
   });
@@ -1175,6 +1252,20 @@
   $('#content').addEventListener('dragover', e => { const c = e.target.closest('.col'); if (!c || !dragId) return; e.preventDefault(); document.querySelectorAll('.col.over').forEach(x => x !== c && x.classList.remove('over')); c.classList.add('over'); });
   $('#content').addEventListener('drop', e => { const c = e.target.closest('.col'); if (!c || !dragId) return; e.preventDefault(); c.classList.remove('over'); setStatus(dragId, c.dataset.col); dragId = null; });
 
+  $('#content').addEventListener('submit', e => {
+    const f = e.target.closest('.cladd'); if (!f) return; e.preventDefault();
+    const inp = f.querySelector('input'), v = inp.value.trim(), t = state.tasks.get(f.dataset.addsub);
+    if (!v || !t) return;
+    const subs = [...(t.subtasks || []).map(x => ({...x})), newSub(v)];
+    if (subs.length > 6) state.expanded.add(t.id);
+    Store.put({ ...t, subtasks:subs });   // re-renders; renderMain puts the cursor back for the next one
+    if (state.openId === t.id) renderDrawer();
+  });
+  $('#content').addEventListener('keydown', e => { if (e.key === 'Escape' && e.target.id === 'claddInput') { e.stopPropagation(); state.addingSub = null; renderMain(); } });
+  $('#content').addEventListener('focusout', e => {
+    if (e.target.id !== 'claddInput') return;
+    setTimeout(() => { const i = $('#claddInput'); if (state.addingSub && (!i || (document.activeElement !== i && !i.value.trim()))) { state.addingSub = null; renderMain(); } }, 200);
+  });
   $('#content').addEventListener('change', e => {
     const g = e.target.dataset.g;
     if (g === 'group') { G.group = e.target.checked; saveG(); renderMain(); }
@@ -1257,6 +1348,7 @@
     if (e.target.id === 'create') { createDraft(); return; }
     const t = cur(); if (!t) return;
     const sbtn = e.target.closest('#f_status button');
+    if (sbtn && sbtn.dataset.s === 'done' && !state.creating && t.status !== 'done') { toggleDone(state.openId); return; }
     if (sbtn) { const s = sbtn.dataset.s; edit({ status:s, doneAt: s==='done' ? (t.doneAt || Date.now()) : null }); renderDrawer(); return; }
     const pb = e.target.closest('[data-p]');
     if (pb) { edit({ priority:+pb.dataset.p }); renderDrawer(); return; }
@@ -1298,7 +1390,16 @@
       subs[i] = { ...subs[i], ...schedPatch(subs[i], el.dataset.ss != null ? 'start' : 'due', el.value) };
       edit({ subtasks:subs }); renderDrawer(); return;
     }
-    if (el.matches('#subs input[type=checkbox]')) { const subs = t.subtasks.map(s=>({...s})); subs[+el.dataset.i].done = el.checked; edit({ subtasks:subs }); renderDrawer(); }
+    if (el.dataset.st != null) {   // rename a sub-task
+      const v = el.value.trim(), i = +el.dataset.st;
+      if (!v) { renderDrawer(); return; }
+      if (v !== t.subtasks[i].t) { const subs = t.subtasks.map(s=>({...s})); subs[i].t = v; edit({ subtasks:subs }); }
+      return;
+    }
+    if (el.matches('#subs input[type=checkbox]')) {
+      if (!state.creating) { toggleSub(state.openId, +el.dataset.i); return; }
+      const subs = t.subtasks.map(s=>({...s})); subs[+el.dataset.i].done = el.checked; edit({ subtasks:subs }); renderDrawer();
+    }
   });
   D.addEventListener('input', e => {
     const t = e.target;
@@ -1314,18 +1415,35 @@
     if (e.target.id !== 'subadd') return; e.preventDefault();
     const inp = $('#f_sub'), v = inp.value.trim(); if (!v) return;
     const task = cur(); if (!task) return;
-    // "Cut panels fri" → step "Cut panels" due Friday
-    const q = parseQuick(v), step = { t: q.title || v, done:false };
-    if (q.due && q.title) step.due = q.due;
-    edit({ subtasks:[...(task.subtasks||[]).map(s=>({...s})), step] });
+    edit({ subtasks:[...(task.subtasks||[]).map(s=>({...s})), newSub(v)] });
     renderDrawer(); $('#f_sub').focus();
   });
+  // drag the ⋮⋮ grip to reorder sub-tasks
+  let dragSub = null;
+  const clearDrop = () => D.querySelectorAll('.s.dragging,.s.dropb,.s.dropa').forEach(x => x.classList.remove('dragging','dropb','dropa'));
+  D.addEventListener('dragstart', e => { const g = e.target.closest('.grip'); if (!g) return; const r = g.closest('.s'); dragSub = +r.dataset.row; r.classList.add('dragging'); try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); e.dataTransfer.setDragImage(r, 10, 10); } catch(_){} });
+  D.addEventListener('dragover', e => {
+    if (dragSub == null) return; const r = e.target.closest('.s[data-row]'); if (!r) return; e.preventDefault();
+    D.querySelectorAll('.s.dropb,.s.dropa').forEach(x => x.classList.remove('dropb','dropa'));
+    const b = r.getBoundingClientRect(); r.classList.add(e.clientY < b.top + b.height / 2 ? 'dropb' : 'dropa');
+  });
+  D.addEventListener('drop', e => {
+    if (dragSub == null) return; const r = e.target.closest('.s[data-row]'); if (!r) return; e.preventDefault();
+    let to = +r.dataset.row + (r.classList.contains('dropa') ? 1 : 0);
+    const t = cur(), subs = t.subtasks.map(x => ({...x})), [m] = subs.splice(dragSub, 1);
+    if (to > dragSub) to--;
+    subs.splice(to, 0, m); dragSub = null; clearDrop(); state.subOpen = null;
+    edit({ subtasks:subs }); renderDrawer();
+  });
+  D.addEventListener('dragend', () => { dragSub = null; clearDrop(); });
   D.addEventListener('keydown', e => {
+    if (e.target.classList.contains('stitle') && e.key === 'Enter') { e.preventDefault(); e.target.blur(); return; }
     if (e.target.id === 'f_title' && e.key === 'Enter') { e.preventDefault(); if (state.creating) createDraft(); else e.target.blur(); }
   });
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && (state.openId || state.creating)) { flushTyping(); closeDrawer(); return; }
+    if (e.key === 'Escape' && document.getElementById('smenu')) { closeMenu(); return; }
+    if (e.key === 'Escape' && (state.openId || state.creating)) { if (D.contains(document.activeElement)) document.activeElement.blur(); flushTyping(); closeDrawer(); return; }
     if (state.creating && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); createDraft(); return; }
     const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
     if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
