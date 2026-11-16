@@ -1,7 +1,7 @@
 {
   "name": "Task Manager",
   "short_name": "Tasks",
-  "start_url": "./#today",
+  "start_url": "./#all",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f6f6f3",

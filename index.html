@@ -116,6 +116,23 @@
   .meta .doing{color:var(--accent);font-weight:600}
   .star{background:none;border:0;color:var(--faint);font-size:15px;padding:0 2px;line-height:1;opacity:.0}
   .task:hover .star,.star.on{opacity:1} .star.on{color:#f5b301}
+  .hint:empty{display:none}
+  .listbar{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--faint)}
+  .listbar .zseg button{padding:3px 10px;font-size:12px}
+  .ptag{font-size:11px;font-weight:600;padding:0 7px;border-radius:99px;line-height:18px}
+  .ptag.p3{color:var(--p1);background:rgba(229,72,77,.12)} .ptag.p2{color:var(--p2);background:rgba(240,140,0,.13)} .ptag.p1{color:var(--p3);background:rgba(47,111,237,.12)}
+  .prog{display:inline-block;width:38px;height:5px;border-radius:9px;background:var(--line);overflow:hidden;vertical-align:middle}
+  .prog i{display:block;height:100%;background:var(--ok)}
+  .cl{margin:6px 0 0 -6px;display:flex;flex-direction:column}
+  .cl .ck{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:0;padding:4px 6px;border-radius:6px;font-size:13px;color:var(--ink)}
+  .cl .ck:hover{background:rgba(127,127,120,.09)}
+  .cl .box{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--faint);flex:none;display:grid;place-items:center;font-size:10px;color:#fff;transition:background .1s}
+  .cl .ck:hover .box{border-color:var(--ok)}
+  .cl .ck.d .box{background:var(--ok);border-color:var(--ok)}
+  .cl .ckt{flex:1;min-width:0;word-wrap:break-word}
+  .cl .ck.d .ckt{text-decoration:line-through;color:var(--faint)}
+  .cl small{font-size:11px;color:var(--muted);white-space:nowrap} .cl small.over{color:var(--p1);font-weight:600}
+  .cl .clmore{background:none;border:0;color:var(--accent);font-size:12px;padding:3px 6px;text-align:left;align-self:flex-start}
   .empty{text-align:center;color:var(--faint);padding:60px 20px}
   .empty b{display:block;font-size:15px;color:var(--muted);margin-bottom:4px}
   .connecting{color:var(--faint);padding:40px 0;text-align:center}
@@ -316,7 +333,7 @@
     <div class="top" id="top">
       <div class="titlerow">
         <button class="menubtn" id="menuBtn" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-        <h1 id="vtitle">Today</h1><span class="sub" id="vsub"></span><div class="vtabs" id="vtabs"></div>
+        <h1 id="vtitle">Tasks</h1><span class="sub" id="vsub"></span><div class="vtabs" id="vtabs"></div>
         <div class="search-wrap"><span class="ico"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg></span><input class="search" id="search" placeholder="Search  /" autocomplete="off"></div>
       </div>
       <form class="quick" id="quick">
@@ -359,10 +376,10 @@
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const STATUSES = [['todo','To do'],['doing','Doing'],['waiting','Waiting'],['done','Done']];
   const VIEWS = {
-    today:{t:'Today'}, upcoming:{t:'Upcoming'}, all:{t:'All tasks'}, timeline:{t:'Timeline'}, board:{t:'Board'},
+    all:{t:'Tasks'}, timeline:{t:'Timeline'}, board:{t:'Board'},
     waiting:{t:'Waiting on'}, done:{t:'Completed'}   // reached from the tabs on "All tasks"
   };
-  const NAV = ['today','upcoming','all','timeline','board'];
+  const NAV = ['all','timeline','board'];
   const navOf = v => (v === 'waiting' || v === 'done') ? 'all' : v;
   const ICON = {
     today:'<circle cx="8" cy="8" r="2.8"/><path d="M8 1.6v1.6M8 12.8v1.6M1.6 8h1.6M12.8 8h1.6M3.5 3.5l1.1 1.1M11.4 11.4l1.1 1.1M3.5 12.5l1.1-1.1M11.4 4.6l1.1-1.1"/>',
@@ -421,7 +438,7 @@
   }
 
   // ---------- state ----------
-  const state = { tasks:new Map(), view:'today', project:null, search:'', openId:null, mode:'loading' };
+  const state = { tasks:new Map(), view:'all', sort:(() => { try { return localStorage.getItem('tm.sort') || 'priority'; } catch(e){ return 'priority'; } })(), expanded:new Set(), project:null, search:'', openId:null, mode:'loading' };
   const PRI = {3:'High',2:'Medium',1:'Low',0:'None'};
   const projHue = name => { let h = 0; for (const c of name) h = (h*31 + c.charCodeAt(0)) % 360; return h; };
   const projColor = name => `hsl(${projHue(name)} 60% 52%)`;
@@ -583,11 +600,13 @@
 
   // ---------- selectors ----------
   const open = t => t.status !== 'done';
+  const SORTS = { priority:'Priority', due:'Due date', newest:'Newest' };
+  const byDue = (a,b) => (a.due||'9999').localeCompare(b.due||'9999');
+  const byPri = (a,b) => (b.priority||0) - (a.priority||0);
   const sortTasks = arr => arr.sort((a,b) =>
-    (b.star?1:0) - (a.star?1:0) ||
-    (a.due||'9999') .localeCompare(b.due||'9999') ||
-    (b.priority||0) - (a.priority||0) ||
-    (a.createdAt||0) - (b.createdAt||0));
+    state.sort === 'due' ? byDue(a,b) || byPri(a,b) || (a.createdAt||0) - (b.createdAt||0)
+    : state.sort === 'newest' ? (b.createdAt||0) - (a.createdAt||0)
+    : byPri(a,b) || byDue(a,b) || (a.createdAt||0) - (b.createdAt||0));
   function matches(t){
     if (state.project && t.project !== state.project) return false;
     if (state.search) {
@@ -620,7 +639,7 @@
 
   function renderSide(){
     const c = counts(), cur = state.project ? null : navOf(state.view);
-    const badge = v => v === 'today' && c.today ? `<span class="ct ${c.overdue ? 'badge' : ''}" title="${c.overdue ? c.overdue + ' overdue' : ''}">${c.today}</span>` : '';
+    const badge = v => v === 'all' ? (c.overdue ? `<span class="ct badge" title="${c.overdue} overdue">${c.overdue}</span>` : `<span class="ct">${c.all || ''}</span>`) : '';
     const ps = projects();
     const online = state.mode === 'db' && syncState === 'ok';
     $('#side').innerHTML = `
@@ -634,7 +653,7 @@
         <span class="em"><b title="${esc(state.email||'')}">${esc(state.email||'')}</b><span>${online ? 'All changes synced' : 'Offline — will retry'}</span></span>
         <button id="signout" title="Sign out">${'<span class="ico"><svg viewBox="0 0 16 16">' + ICON.out + '</svg></span>'}</button></div>`
         : `<div class="acct off"><span class="em"><span>Connecting…</span></span></div>`}`;
-    $('#tabbar').innerHTML = NAV.map(v => `<button data-view="${v}" class="${cur === v ? 'on' : ''}">${ico(v)}${v === 'all' ? 'All' : VIEWS[v].t}${v === 'today' && c.overdue ? `<span class="tb">${c.overdue}</span>` : ''}</button>`).join('');
+    $('#tabbar').innerHTML = NAV.map(v => `<button data-view="${v}" class="${cur === v ? 'on' : ''}">${ico(v)}${VIEWS[v].t}${v === 'all' && c.overdue ? `<span class="tb">${c.overdue}</span>` : ''}</button>`).join('');
   }
 
   function taskRow(t, opts = {}){
@@ -643,12 +662,22 @@
     if (t.due) { const d = dueLabel(t.due); meta.push(`<span class="due ${t.status==='done'?'':d.cls}">◷ ${d.txt}</span>`); }
     if (t.project && !state.project) meta.push(`<span class="chip"><span class="dot" style="background:${projColor(t.project)}"></span>${esc(t.project)}</span>`);
     if (t.status === 'waiting') meta.push(`<span class="wait">⏳ ${t.waitingOn ? esc(t.waitingOn) : 'Waiting'}</span>`);
-    if (t.subtasks && t.subtasks.length) meta.push(`<span>☑ ${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>`);
+    if (t.priority && t.status !== 'done') meta.unshift(`<span class="ptag p${t.priority}">${['','Low','Medium','High'][t.priority]}</span>`);
+    const subs = t.subtasks || [];
+    if (subs.length) meta.push(`<span class="prog" title="${subs.filter(s=>s.done).length} of ${subs.length} steps done"><i style="width:${Math.round(subs.filter(s=>s.done).length / subs.length * 100)}%"></i></span><span>${subs.filter(s=>s.done).length}/${subs.length}</span>`);
     if (t.notes) meta.push(`<span title="Has notes">✎</span>`);
+    let cl = '';
+    if (subs.length) {
+      const LIM = 5, showAll = state.expanded.has(t.id) || subs.length <= LIM + 1, T = todayStr();
+      cl = `<div class="cl">${subs.slice(0, showAll ? subs.length : LIM).map((x, i) => {
+        const sp = span(x), over = sp && !x.done && sp.e < T;
+        return `<button type="button" class="ck ${x.done ? 'd' : ''}" data-ck="${i}" title="${x.done ? 'Mark not done' : 'Mark done'}"><span class="box">${x.done ? '✓' : ''}</span><span class="ckt">${esc(x.t)}</span>${sp ? `<small class="${over ? 'over' : ''}">◷ ${rangeTxt(x)}</small>` : ''}</button>`;
+      }).join('')}${showAll ? (subs.length > LIM + 1 ? `<button type="button" class="clmore" data-clmore="1">Show less</button>` : '')
+        : `<button type="button" class="clmore" data-clmore="1">+ ${subs.length - LIM} more steps</button>`}</div>`;
+    }
     return `<div class="task ${t.status==='done'?'done':''} ${state.openId===t.id?'sel':''}" data-id="${t.id}" ${opts.drag?'draggable="true"':''}>
       <button class="check p${t.priority||0}" data-act="toggle" title="Mark done">${t.status==='done'?'✓':''}</button>
-      <div class="body"><div class="ttl">${esc(t.title)}</div>${meta.length?`<div class="meta">${meta.join('')}</div>`:''}</div>
-      ${t.status!=='done'?`<button class="star ${t.star?'on':''}" data-act="star" title="${t.star?'Remove from Today':'Pin to Today'}">★</button>`:''}
+      <div class="body"><div class="ttl">${esc(t.title)}</div>${meta.length?`<div class="meta">${meta.join('')}</div>`:''}${cl}</div>
     </div>`;
   }
   const group = (title, arr, cls='') => arr.length ? `<div class="group ${cls}"><h3>${title}<span class="n">${arr.length}</span></h3>${arr.map(t=>taskRow(t)).join('')}</div>` : '';
@@ -659,7 +688,7 @@
     const title = state.project ? '# ' + state.project : VIEWS[navOf(state.view)].t;
     $('#vtitle').textContent = title;
     const now = new Date();
-    $('#vsub').textContent = state.view === 'today' && !state.project ? `${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][now.getDay()]}, ${now.getDate()} ${MON[now.getMonth()]}` : '';
+    $('#vsub').textContent = '';
     const cc = counts();
     $('#vtabs').innerHTML = state.project ? [['all','List'],['timeline','Timeline'],['board','Board']].map(([v,l]) =>
       `<button data-v="${v}" class="${state.view===v || (v==='all' && !['timeline','board'].includes(state.view)) ? 'on':''}">${l}</button>`).join('')
@@ -687,25 +716,10 @@
       const o = sortTasks(ts.filter(open)), d = ts.filter(t => t.status==='done');
       html = o.length || d.length ? group('Doing', o.filter(t=>t.status==='doing')) + group('To do', o.filter(t=>t.status==='todo' || !t.status)) + group('Waiting', o.filter(t=>t.status==='waiting')) + group('Completed', d.sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)))
         : empty('No tasks in this project', 'Add one above — the project tag is filled in for you.');
-    } else if (state.view === 'today') {
-      const o = sortTasks(ts.filter(open));
-      const over = o.filter(t => t.due && t.due < T);
-      const tod = o.filter(t => (t.due === T) || (t.star && !(t.due && t.due < T)));
-      const doneToday = ts.filter(t => t.status==='done' && t.doneAt && ymd(new Date(t.doneAt)) === T);
-      html = group('Overdue', over, 'overdue') + group('Today', tod) + group('Done today', doneToday);
-      if (!over.length && !tod.length) html = empty('Nothing due today', 'Add a task with <code>today</code>, or tap ★ on any task to pin it here.') + group('Done today', doneToday);
-    } else if (state.view === 'upcoming') {
-      const o = sortTasks(ts.filter(t => open(t) && t.due && t.due > T));
-      const byDate = new Map();
-      for (const t of o) { const n = dayDiff(t.due); const k = n < 8 ? t.due : n < 31 ? 'Later this month' : 'Later'; if (!byDate.has(k)) byDate.set(k, []); byDate.get(k).push(t); }
-      for (const [k, arr] of byDate) {
-        const label = /^\d/.test(k) ? (()=>{ const d = parseYmd(k); return `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`; })() : k;
-        html += group(label, arr);
-      }
-      if (!o.length) html = empty('Nothing scheduled', 'Tasks with a future due date show up here.');
     } else if (state.view === 'all') {
-      const o = sortTasks(ts.filter(open));
-      html = group('Doing', o.filter(t=>t.status==='doing')) + group('To do', o.filter(t=>t.status==='todo'||!t.status)) + group('Waiting', o.filter(t=>t.status==='waiting'));
+      const o = sortTasks(ts.filter(open)), T0 = todayStr();
+      const over = o.filter(t => t.due && t.due < T0 && t.status !== 'waiting');
+      html = group('Overdue', over, 'overdue') + group('Doing', o.filter(t=>t.status==='doing' && !over.includes(t))) + group('To do', o.filter(t=>(t.status==='todo'||!t.status) && !over.includes(t))) + group('Waiting', o.filter(t=>t.status==='waiting'));
       if (!o.length) html = empty('No open tasks', 'Type a task in the box above and press Enter.');
     } else if (state.view === 'waiting') {
       const o = sortTasks(ts.filter(t => t.status === 'waiting'));
@@ -714,6 +728,9 @@
       const d = ts.filter(t => t.status==='done').sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
       html = d.length ? `<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn danger" id="clearDone">Delete all completed</button></div>` + group('Completed', d) : empty('Nothing completed yet', 'Finished tasks land here.');
     }
+    const sortable = state.view !== 'done' && state.view !== 'board';
+    if (sortable && html && !html.startsWith('<div class="empty"')) html = `<div class="listbar"><span>Sort by</span><div class="zseg">${Object.entries(SORTS).map(([k, l]) =>
+      `<button data-sort="${k}" class="${state.sort===k?'on':''}">${l}</button>`).join('')}</div></div>` + html;
     el.innerHTML = html;
   }
 
@@ -905,8 +922,7 @@
   }
   function openCreate(pre = {}){
     if (state.openId) { flushTyping(); state.openId = null; D.classList.remove('open'); }
-    const tv = state.view === 'today' && !state.project;
-    state.draft = { id:uid(), title:'', project:state.project || '', priority:0, due: tv ? todayStr() : null, start:null,
+    state.draft = { id:uid(), title:'', project:state.project || '', priority:0, due: null, start:null,
       status: state.view === 'waiting' && !state.project ? 'waiting' : 'todo', notes:'', waitingOn:'', subtasks:[], star:false,
       createdAt:Date.now(), doneAt:null, ...pre };
     state.creating = true; state.subOpen = null; D.dataset.for = '';
@@ -1020,7 +1036,6 @@
     const p = parseQuick(raw);
     if (!p.title) { toast('Give the task a name'); return; }
     if (!p.project && state.project) p.project = state.project;
-    if (!p.due && state.view === 'today' && !state.project) p.due = todayStr();
     const t = { id:uid(), title:p.title, project:p.project, priority:p.priority, due:p.due, status: state.view==='waiting' && !state.project ? 'waiting' : 'todo',
       notes:'', waitingOn:'', subtasks:[], star:false, createdAt:Date.now(), doneAt:null };
     Store.put(t);
@@ -1057,7 +1072,6 @@
     }
     const p = parseQuick(v), bits = [];
     if (p.due) bits.push(`<span class="chip">◷ ${dueLabel(p.due).txt}</span>`);
-    else if (state.view === 'today' && !state.project) bits.push(`<span class="chip">◷ Today</span>`);
     const proj = p.project || state.project;
     if (proj) bits.push(`<span class="chip"><span class="dot" style="background:${projColor(proj)}"></span>${esc(proj)}</span>`);
     if (p.priority) bits.push(`<span class="chip" style="color:var(--p${4-p.priority})">● ${PRI[p.priority]}</span>`);
@@ -1118,6 +1132,8 @@
       if ('grp' in gl.dataset) { const k = gl.dataset.grp; G.collapsed.has(k) ? G.collapsed.delete(k) : G.collapsed.add(k); saveG(); renderMain(); return; }
       return;
     }
+    const so = e.target.closest('[data-sort]');
+    if (so) { state.sort = so.dataset.sort; try { localStorage.setItem('tm.sort', state.sort); } catch(_){} renderMain(); return; }
     if (e.target.id === 'clearDone') {
       const b = e.target;
       if (!b.classList.contains('arm')) { b.classList.add('arm'); b.textContent = 'Click again to delete all'; setTimeout(() => { b.classList.remove('arm'); b.textContent = 'Delete all completed'; }, 3000); return; }
@@ -1126,7 +1142,10 @@
     const row = e.target.closest('.task'); if (!row) return;
     const act = e.target.closest('[data-act]')?.dataset.act, id = row.dataset.id;
     if (act === 'toggle') { e.stopPropagation(); toggleDone(id); return; }
-    if (act === 'star') { e.stopPropagation(); const t = state.tasks.get(id); Store.put({ ...t, star: !t.star }); return; }
+    const ck = e.target.closest('[data-ck]');
+    if (ck) { const t = state.tasks.get(id); const subs = t.subtasks.map(x => ({...x})); const i = +ck.dataset.ck; subs[i].done = !subs[i].done;
+      Store.put({ ...t, subtasks:subs }); if (state.openId === id) renderDrawer(); return; }
+    if (e.target.closest('[data-clmore]')) { state.expanded.has(id) ? state.expanded.delete(id) : state.expanded.add(id); renderMain(); return; }
     openDrawer(id);
   });
 
@@ -1302,7 +1321,7 @@
 
   // ---------- boot ----------
   const h = (location.hash || '').slice(1);
-  if (VIEWS[h]) state.view = h;
+  state.view = VIEWS[h] ? h : 'all';
   renderHint(); render();
   connect();
 })();
