@@ -743,9 +743,10 @@
   // ---------- timeline (Gantt) ----------
   const ZOOMS = { day:{dw:34, l:'Days'}, week:{dw:14, l:'Weeks'}, month:{dw:4, l:'Months'} };
   const gp = (() => { try { return JSON.parse(localStorage.getItem('tm.gantt')) || {}; } catch(e){ return {}; } })();
-  const G = { zoom: ZOOMS[gp.zoom] ? gp.zoom : 'day', showDone: !!gp.showDone, group: gp.group !== false,
+  const GSORTS = { start:'Start date', due:'Finish date', priority:'Priority' };
+  const G = { zoom: ZOOMS[gp.zoom] ? gp.zoom : 'day', sort: GSORTS[gp.sort] ? gp.sort : 'start', showDone: !!gp.showDone, group: gp.group !== false,
     collapsed: new Set(gp.collapsed || []), subOpen: new Map(), start: null, dw: 34, days: 0, didScroll: false };
-  const saveG = () => { try { localStorage.setItem('tm.gantt', JSON.stringify({ zoom:G.zoom, showDone:G.showDone, group:G.group, collapsed:[...G.collapsed] })); } catch(e){} };
+  const saveG = () => { try { localStorage.setItem('tm.gantt', JSON.stringify({ zoom:G.zoom, sort:G.sort, showDone:G.showDone, group:G.group, collapsed:[...G.collapsed] })); } catch(e){} };
   const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const span = t => { const s = t.start || t.due, e = t.due || t.start; if (!s) return null; return s <= e ? {s, e} : {s:e, e:s}; };
   const dIdx = s => Math.round((parseYmd(s) - G.start) / 864e5);
@@ -768,17 +769,14 @@
     G.start = lo; G.days = n;
     const todayX = dIdx(T) * G.dw;
 
-    const ordered = arr => arr.sort((a, b) => {
-      const sa = span(a), sb2 = span(b);
-      if (!!sa !== !!sb2) return sa ? -1 : 1;
-      if (sa) return sa.s.localeCompare(sb2.s) || sa.e.localeCompare(sb2.e) || (a.createdAt||0) - (b.createdAt||0);
-      return (a.createdAt||0) - (b.createdAt||0);
-    });
+    const ordered = arr => arr.sort(gCmp);
     let rows = '';
     if (G.group && !state.project) {
       const m = new Map();
       for (const t of list) { const k = t.project || ''; if (!m.has(k)) m.set(k, []); m.get(k).push(t); }
-      const keys = [...m.keys()].sort((a, b) => (a === '') - (b === '') || a.localeCompare(b));
+      // groups follow the chosen order too: the group whose first task comes earliest goes first
+      const first = new Map([...m].map(([k, arr]) => [k, [...arr].sort(gCmp)[0]]));
+      const keys = [...m.keys()].sort((a, b) => gCmp(first.get(a), first.get(b)) || (a === '') - (b === '') || a.localeCompare(b));
       for (const k of keys) {
         rows += gGroupRow(k, m.get(k));
         if (!G.collapsed.has(k)) rows += ordered(m.get(k)).map(t => gRow(t, todayX)).join('');
@@ -787,8 +785,10 @@
     rows += `<div class="grow gadd"><div class="gl" data-add="1"><div class="gn">＋ Add task</div></div><div class="gr"></div></div>`;
 
     const zbtn = Object.entries(ZOOMS).map(([k, z]) => `<button data-z="${k}" class="${G.zoom===k?'on':''}">${z.l}</button>`).join('');
+    const sbtn = Object.entries(GSORTS).map(([k, l]) => `<button data-gsort="${k}" class="${G.sort===k?'on':''}">${l}</button>`).join('');
     return `<div class="gtool">
         <div class="zseg">${zbtn}</div>
+        <span style="font-size:12px;color:var(--faint)">Sort</span><div class="zseg">${sbtn}</div>
         <button class="btn sm" data-g="today">Go to today</button>
         <span class="sp"></span>
         ${!state.project ? `<label><input type="checkbox" data-g="group" ${G.group?'checked':''}> Group by project</label>` : ''}
@@ -836,6 +836,22 @@
     const sps = (t.subtasks || []).map(span).filter(Boolean); if (!sps.length) return null;
     return { s: sps.reduce((m, x) => x.s < m ? x.s : m, sps[0].s), e: sps.reduce((m, x) => x.e > m ? x.e : m, sps[0].e) };
   };
+  // timeline ordering: by start or finish date (a lone date counts for both), or by priority
+  const dKey = (o, which) => which === 'due' ? (o.due || o.start || null) : (o.start || o.due || null);
+  const taskKey = (t, which) => dKey(t, which) || (() => { const ss = subSpan(t); return ss ? (which === 'due' ? ss.e : ss.s) : null; })();
+  const cmpKey = (a, b) => (a === b ? 0 : !a ? 1 : !b ? -1 : a.localeCompare(b));   // undated last
+  function gCmp(a, b){
+    if (!a || !b) return 0;
+    const other = G.sort === 'due' ? 'start' : 'due';
+    if (G.sort === 'priority') return (b.priority||0) - (a.priority||0) || cmpKey(taskKey(a, 'start'), taskKey(b, 'start')) || (a.createdAt||0) - (b.createdAt||0);
+    return cmpKey(taskKey(a, G.sort), taskKey(b, G.sort)) || cmpKey(taskKey(a, other), taskKey(b, other)) || (b.priority||0) - (a.priority||0) || (a.createdAt||0) - (b.createdAt||0);
+  }
+  const subOrder = subs => {   // checklist steps by date (keeps their real index for editing)
+    const idx = subs.map((_, i) => i);
+    if (G.sort === 'priority') return idx;
+    const w = G.sort === 'due' ? 'due' : 'start', o = w === 'due' ? 'start' : 'due';
+    return idx.sort((i, j) => cmpKey(dKey(subs[i], w), dKey(subs[j], w)) || cmpKey(dKey(subs[i], o), dKey(subs[j], o)) || i - j);
+  };
   const oneDate = o => !!(o.start || o.due) && !(o.start && o.due);   // only a start or only a finish
   // a lone date: a marker on that day plus a gray band between it and today
   function pinHtml(o, label, color, done){
@@ -875,7 +891,7 @@
       right = `<div class="gr unsched" data-id="${t.id}"><span class="hintx" style="left:${todayX + 8}px">Not scheduled — click or drag here to set dates</span></div>`;
     }
     let html = `<div class="grow ${state.openId === t.id ? 'sel' : ''}">${left}${right}</div>`;
-    if (op) html += subs.map((x, i) => gSubRow(t, x, i, todayX)).join('');
+    if (op) html += subOrder(subs).map(i => gSubRow(t, subs[i], i, todayX)).join('');
     return html;
   }
 
@@ -1121,6 +1137,8 @@
     // timeline toolbar + left-hand task list
     const z = e.target.closest('[data-z]');
     if (z) { G.zoom = z.dataset.z; G.didScroll = false; saveG(); renderMain(); return; }
+    const gs = e.target.closest('[data-gsort]');
+    if (gs) { G.sort = gs.dataset.gsort; saveG(); renderMain(); return; }
     if (e.target.closest('button[data-g="today"]')) { scrollToToday(true); return; }
     const tg = e.target.closest('[data-tog]');
     if (tg) { const t = state.tasks.get(tg.dataset.tog); if (t) { G.subOpen.set(t.id, !subsOpen(t)); renderMain(); } return; }
