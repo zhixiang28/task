@@ -144,6 +144,12 @@
   .menu button.on{font-weight:600}
   .menu button.on:after{content:'✓';margin-left:auto;color:var(--accent)}
   .menu i{width:9px;height:9px;border-radius:50%}
+  .exportmenu{width:250px}
+  .exportmenu .mh{padding:7px 10px 4px;font-size:12px;color:var(--muted)}
+  .exportmenu .mopt{display:flex;align-items:center;gap:8px;padding:5px 10px 8px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line);margin-bottom:4px;cursor:pointer}
+  .exportmenu .mopt input{accent-color:var(--accent);margin:0}
+  .exportmenu small{margin-left:auto;color:var(--faint);font-size:11px}
+  .exportmenu .ico{color:var(--muted)}
   .menu .s-todo{background:var(--faint)} .menu .s-doing{background:var(--accent)} .menu .s-waiting{background:var(--wait)} .menu .s-done{background:var(--ok)}
   .addsub{background:none;border:0;color:var(--faint);font-size:12px;padding:4px 6px;text-align:left;align-self:flex-start;border-radius:6px}
   .addsub:hover{color:var(--accent);background:rgba(127,127,120,.08)}
@@ -422,7 +428,8 @@
     timeline:'<path d="M2.5 3.5h6M5.5 8h8M3.5 12.5h5" stroke-width="2.4"/>',
     board:'<rect x="2" y="2.5" width="3.4" height="11" rx="1"/><rect x="6.3" y="2.5" width="3.4" height="7" rx="1"/><rect x="10.6" y="2.5" width="3.4" height="9" rx="1"/>',
     plus:'<path d="M8 3v10M3 8h10"/>',
-    out:'<path d="M6 2.5H3.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1H6M10.5 11 13.5 8l-3-3M13.5 8H6"/>'
+    out:'<path d="M6 2.5H3.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1H6M10.5 11 13.5 8l-3-3M13.5 8H6"/>',
+    export:'<path d="M8 2v8M4.8 6.8 8 10l3.2-3.2M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/>'
   };
   const ico = k => `<span class="ico"><svg viewBox="0 0 16 16">${ICON[k]}</svg></span>`;
   const D = document.getElementById('drawer');
@@ -683,6 +690,7 @@
       <div class="nav"><h4>Projects</h4>${ps.length ? ps.map(([p,n]) =>
         `<button data-project="${esc(p)}" class="${state.project===p?'on':''}"><span class="ico"><span class="dot" style="background:${projColor(p)}"></span></span>${esc(p)}<span class="ct">${n||''}</span></button>`).join('')
         : `<div class="phint">Type <code>#name</code> in a task to group it into a project.</div>`}</div>
+      <div class="nav"><button id="exportBtn" title="Download your tasks as CSV or text">${ico('export')}Export…</button></div>
       ${state.mode === 'db' ? `<div class="acct ${online ? '' : 'off'}"><span class="av">${esc((state.email||'?')[0])}<i></i></span>
         <span class="em"><b title="${esc(state.email||'')}">${esc(state.email||'')}</b><span>${online ? 'All changes synced' : 'Offline — will retry'}</span></span>
         <button id="signout" title="Sign out">${'<span class="ico"><svg viewBox="0 0 16 16">' + ICON.out + '</svg></span>'}</button></div>`
@@ -1123,6 +1131,76 @@
     Store.put(t);
     toast(`Added${t.due ? ' · ' + dueLabel(t.due).txt : ''}${t.project ? ' · #' + t.project : ''}`);
   }
+  // ---------- export ----------
+  let exportDone = true;   // include completed tasks
+  function exportTasks(){
+    const list = all().filter(t => (!state.project || t.project === state.project) && (exportDone || t.status !== 'done'));
+    const key = t => t.start || t.due || '9999';
+    return list.sort((a, b) => (a.project || '\uffff').localeCompare(b.project || '\uffff') || key(a).localeCompare(key(b)) || (b.priority||0) - (a.priority||0) || (a.createdAt||0) - (b.createdAt||0));
+  }
+  const statusName = s => (STATUSES.find(x => x[0] === (s || 'todo')) || [, 'To do'])[1];
+  const durOf = o => o.start && o.due ? String(durDays(...Object.values(span(o)))) : '';
+  const isoDay = ms => ms ? ymd(new Date(ms)) : '';
+  function toCSV(){
+    const q = v => { v = String(v ?? ''); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    const rows = [['Type','Task','Parent task','Project','Status','Priority','Start','Finish','Duration (days)','Done','Waiting on','Notes','Created','Completed']];
+    for (const t of exportTasks()) {
+      rows.push(['Task', t.title, '', t.project, statusName(t.status), PRI[t.priority||0], t.start||'', t.due||'', durOf(t), t.status === 'done' ? 'Yes' : 'No', t.waitingOn, t.notes, isoDay(t.createdAt), isoDay(t.doneAt)]);
+      for (const x of t.subtasks || []) rows.push(['Sub-task', x.t, t.title, t.project, x.done ? 'Done' : '', '', x.start||'', x.due||'', durOf(x), x.done ? 'Yes' : 'No', '', '', '', '']);
+    }
+    return '\ufeff' + rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n';   // BOM so Excel reads accents/Thai/Chinese correctly
+  }
+  function whenTxt(o){
+    if (o.start && o.due) return `${fmtD(o.start)} → ${fmtD(o.due)} (${durOf(o)}d)`;
+    if (o.due) return `due ${fmtD(o.due)}`;
+    if (o.start) return `starts ${fmtD(o.start)}`;
+    return '';
+  }
+  function toText(){
+    const now = new Date(), out = [`${state.project ? 'Project: ' + state.project : 'Tasks'} — exported ${now.getDate()} ${MON[now.getMonth()]} ${now.getFullYear()}`, ''];
+    let curProj = null;
+    for (const t of exportTasks()) {
+      if (!state.project && (t.project || '') !== curProj) { curProj = t.project || ''; out.push('', `## ${curProj || 'No project'}`, ''); }
+      const bits = [statusName(t.status), t.priority ? PRI[t.priority] + ' priority' : '', whenTxt(t), t.status === 'waiting' && t.waitingOn ? 'waiting on ' + t.waitingOn : ''].filter(Boolean);
+      out.push(`[${t.status === 'done' ? 'x' : ' '}] ${t.title}${bits.length ? '  (' + bits.join(' · ') + ')' : ''}`);
+      for (const x of t.subtasks || []) { const w = whenTxt(x); out.push(`    [${x.done ? 'x' : ' '}] ${x.t}${w ? '  (' + w + ')' : ''}`); }
+      if (t.notes) out.push(...t.notes.split('\n').map((l, i) => (i ? '          ' : '    Notes: ') + l));
+    }
+    return out.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';
+  }
+  function download(name, text, type){
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  function exportName(ext){ const slug = state.project ? '-' + state.project.replace(/[^\w.-]+/g, '-') : ''; return `tasks${slug}-${todayStr()}.${ext}`; }
+  function openExport(btn){
+    closeMenu();
+    const n = exportTasks().length;
+    const m = document.createElement('div'); m.className = 'menu exportmenu'; m.id = 'smenu';
+    m.innerHTML = `<div class="mh">Export ${state.project ? `<b>#${esc(state.project)}</b>` : 'all tasks'} · ${n} task${n === 1 ? '' : 's'}</div>
+      <label class="mopt"><input type="checkbox" data-xdone ${exportDone ? 'checked' : ''}> Include completed tasks</label>
+      <button type="button" data-x="csv"><span class="ico"><svg viewBox="0 0 16 16">${ICON.export}</svg></span>Download CSV <small>Excel / Sheets</small></button>
+      <button type="button" data-x="txt"><span class="ico"><svg viewBox="0 0 16 16">${ICON.export}</svg></span>Download text file</button>
+      <button type="button" data-x="copy"><span class="ico"><svg viewBox="0 0 16 16"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5"/><path d="M11 5V3.5a1 1 0 0 0-1-1H3.5a1 1 0 0 0-1 1V10a1 1 0 0 0 1 1H5"/></svg></span>Copy as text</button>`;
+    document.body.appendChild(m);
+    const r = btn.getBoundingClientRect();
+    m.style.left = Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)) + 'px';
+    m.style.top = Math.max(8, r.bottom + m.offsetHeight + 8 > innerHeight ? r.top - m.offsetHeight - 4 : r.bottom + 4) + 'px';
+    m.addEventListener('change', e => { if (e.target.matches('[data-xdone]')) { exportDone = e.target.checked; openExport(btn); } });
+    m.addEventListener('click', async e => {
+      const b = e.target.closest('[data-x]'); if (!b) return;
+      if (!exportTasks().length) { toast('Nothing to export'); return; }
+      closeMenu(); document.body.classList.remove('side-open');
+      if (b.dataset.x === 'csv') { download(exportName('csv'), toCSV(), 'text/csv;charset=utf-8'); toast('CSV downloaded'); }
+      if (b.dataset.x === 'txt') { download(exportName('txt'), toText(), 'text/plain;charset=utf-8'); toast('Text file downloaded'); }
+      if (b.dataset.x === 'copy') {
+        try { await navigator.clipboard.writeText(toText()); toast('Copied — paste it into an email, chat or notes'); }
+        catch(_) { download(exportName('txt'), toText(), 'text/plain;charset=utf-8'); toast('Couldn’t copy, so it was downloaded instead'); }
+      }
+    });
+  }
+
   // ---------- workflow ----------
   // completing a task also ticks off its open sub-tasks (undoable); reopening goes back to Doing if work was started
   function toggleDone(id){
@@ -1169,7 +1247,7 @@
     m.style.top = (r.bottom + m.offsetHeight + 8 > innerHeight ? r.top - m.offsetHeight - 4 : r.bottom + 4) + 'px';
     m.addEventListener('click', e => { const b = e.target.closest('[data-ms]'); if (!b) return; closeMenu(); setStatus(id, b.dataset.ms); });
   }
-  document.addEventListener('pointerdown', e => { if (!e.target.closest('#smenu, [data-act="status"]')) closeMenu(); });
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('#smenu, [data-act="status"], #exportBtn')) closeMenu(); });
   window.addEventListener('resize', closeMenu);
   document.getElementById('main').addEventListener('scroll', closeMenu, true);
 
@@ -1193,6 +1271,7 @@
   // ---------- events ----------
   $('#side').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'exportBtn') { document.getElementById('smenu') ? closeMenu() : openExport(b); return; }
     sideOpen(false);
     if (b.id === 'signout') { sb.auth.signOut(); return; }
     if (b.id === 'newTask') { openCreate(); return; }
