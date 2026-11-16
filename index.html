@@ -34,15 +34,42 @@
   .app{display:grid;grid-template-columns:232px 1fr;height:100vh}
 
   /* Sidebar */
-  aside{background:var(--side);border-right:1px solid var(--line);padding:18px 12px;overflow:auto;display:flex;flex-direction:column;gap:18px}
+  aside{background:var(--side);border-right:1px solid var(--line);padding:16px 12px 10px;overflow:auto;display:flex;flex-direction:column;gap:16px}
   .brand{display:flex;align-items:center;gap:9px;padding:0 8px;font-weight:700;font-size:15px;letter-spacing:-.01em}
   .brand .logo{width:22px;height:22px;border-radius:6px;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:12px}
   .nav{display:flex;flex-direction:column;gap:1px}
   .nav h4{margin:0 0 6px;padding:0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600}
-  .nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;padding:7px 10px;border-radius:7px;color:var(--muted)}
+  .nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;padding:7px 10px;border-radius:8px;color:var(--muted);transition:background .1s,color .1s}
   .nav button:hover{background:rgba(127,127,120,.1);color:var(--ink)}
   .nav button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);font-weight:500}
-  .nav .ico{width:16px;text-align:center;opacity:.8}
+  .ico{width:16px;height:16px;display:inline-grid;place-items:center;flex:none}
+  .ico svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .nav button.on .ico{color:var(--accent)}
+  .nav .ct.badge{background:var(--p1);color:#fff;border-radius:99px;padding:0 6px;font-weight:600}
+  .nav .phint{padding:2px 10px;color:var(--faint);font-size:12px;line-height:1.5}
+  .nav .phint code{font-family:var(--mono);font-size:11px}
+  .acct{margin-top:auto;display:flex;align-items:center;gap:9px;padding:10px 6px 2px 8px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .acct .av{width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:11.5px;flex:none;position:relative;text-transform:uppercase}
+  .acct .av i{position:absolute;right:-2px;bottom:-2px;width:9px;height:9px;border-radius:50%;border:2px solid var(--side);background:var(--ok)}
+  .acct.off .av i{background:var(--p2)}
+  .acct .em{flex:1;min-width:0;line-height:1.3}
+  .acct .em b{display:block;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .acct .em span{font-size:11px;color:var(--faint)}
+  .acct button{background:none;border:0;color:var(--faint);padding:5px;border-radius:6px;display:grid}
+  .acct button:hover{color:var(--ink);background:rgba(127,127,120,.12)}
+  .menubtn{display:none;background:none;border:0;padding:4px;margin-left:-4px;color:var(--ink);place-items:center;align-self:center}
+  .menubtn svg{width:22px;height:22px}
+  .tabbar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;padding:6px 0;font-size:10.5px;color:var(--faint);position:relative}
+  .tabbar button .ico,.tabbar button .ico svg{width:20px;height:20px}
+  .tabbar button.on{color:var(--accent);font-weight:600}
+  .tabbar .tb{position:absolute;top:2px;left:calc(50% + 6px);background:var(--p1);color:#fff;border-radius:99px;font-size:9.5px;padding:0 5px;font-weight:700}
+  .fab{display:none;position:fixed;right:16px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:16;width:52px;height:52px;border-radius:50%;border:0;background:var(--accent);color:#fff;place-items:center;box-shadow:0 6px 20px rgba(47,111,237,.4)}
+  .fab svg{width:24px;height:24px;stroke-width:2.2}
+  .sidescrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:24}
+  .search-wrap{margin-left:auto;position:relative;align-self:center}
+  .search-wrap .ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--faint);pointer-events:none}
+  .titlerow .search-wrap .search{padding-left:30px;margin-left:0}
   .nav .ct{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--faint)}
   .nav .ct.hot{color:var(--p1)}
   .dot{width:8px;height:8px;border-radius:50%;flex:none}
@@ -54,7 +81,7 @@
   main{overflow:auto;display:flex;flex-direction:column}
   .top{position:sticky;top:0;z-index:5;background:var(--bg);padding:22px 32px 12px;border-bottom:1px solid transparent}
   .top.scrolled{border-bottom-color:var(--line)}
-  .titlerow{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}
+  .titlerow{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px 12px;margin-bottom:14px}
   .titlerow h1{margin:0;font-size:22px;letter-spacing:-.02em}
   .titlerow .sub{color:var(--muted);font-size:13px}
   .titlerow .search{margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;width:200px;outline:none}
@@ -63,7 +90,7 @@
   .quick:focus-within{border-color:var(--accent)}
   .quick input{flex:1;border:0;background:none;outline:none;padding:9px 0;font-size:14.5px}
   .quick button{background:var(--ink);color:var(--bg);border:0;border-radius:7px;padding:8px 14px;font-weight:600}
-  .hint{display:flex;flex-wrap:wrap;gap:6px;min-height:24px;margin-top:8px;font-size:12px;color:var(--faint);align-items:center}
+  .hint{display:flex;flex-wrap:wrap;gap:6px;min-height:22px;margin-top:7px;font-size:12px;color:var(--faint);align-items:center}
   .hint code{font-family:var(--mono);font-size:11px;background:rgba(127,127,120,.12);padding:1px 5px;border-radius:4px;color:var(--muted)}
   .chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:11.5px;background:rgba(127,127,120,.12);color:var(--muted);white-space:nowrap}
   .content{padding:8px 32px 80px;flex:1}
@@ -128,8 +155,8 @@
   .btn{border:1px solid var(--line);background:var(--panel);border-radius:7px;padding:6px 12px}
   .btn.danger{color:var(--p1)} .btn.danger.arm{background:var(--p1);color:#fff;border-color:var(--p1)}
   .dfoot .btn:first-child{margin-left:auto}
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:9px;font-size:13px;transition:transform .2s;z-index:30}
-  .toast.show{transform:translateX(-50%)}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;transition:transform .2s,opacity .2s;max-width:calc(100vw - 32px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:9px;font-size:13px;z-index:30}
+  .toast.show{transform:translateX(-50%);opacity:1;pointer-events:auto}
   .banner{background:#fff4e5;color:#8a4b00;border:1px solid #f5d6a8;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-top:10px}
   @media (prefers-color-scheme:dark){.banner{background:#33240f;color:#f2c48a;border-color:#5a3d14}}
 
@@ -155,7 +182,10 @@
   .vtabs button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);font-weight:600}
   .quick button.more{background:none;color:var(--muted);border:1px solid var(--line);font-weight:500}
   .quick button.more:hover{color:var(--ink);border-color:var(--faint)}
-  .newbtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:8px 10px;font-weight:600}
+  .newbtn{display:flex;align-items:center;gap:8px;width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:9px;padding:8px 10px;font-weight:600}
+  .newbtn .ico{color:var(--accent)} .newbtn .ico svg{stroke-width:2.2}
+  .newbtn kbd{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--faint);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+  .newbtn:hover{border-color:var(--faint)}
 
   /* Timeline (Gantt) */
   .content.tl{padding-bottom:16px}
@@ -240,16 +270,19 @@
     .gwrap{--lw:150px}
     .gl{grid-template-columns:1fr} .gl .num{display:none}
     .row3{grid-template-columns:1fr 1fr} .row3 .sl:last-child{grid-column:span 2}
-    .newbtn{width:auto;white-space:nowrap}
     .quick button.more{display:none}
-    .app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-    aside{flex-direction:row;overflow-x:auto;padding:10px;gap:4px;border-right:0;border-bottom:1px solid var(--line)}
-    .brand,.nav h4{display:none}
-    .status{margin:0 0 0 6px;padding:0 6px;white-space:nowrap;gap:8px}
-    .nav{flex-direction:row;gap:4px}
-    .nav button{white-space:nowrap;width:auto}
-    .top{padding:14px 16px 10px} .content{padding:4px 16px 80px}
-    .titlerow .search{width:120px}
+    .app{grid-template-columns:1fr}
+    aside{position:fixed;left:0;top:0;bottom:0;width:min(290px,84vw);z-index:25;transform:translateX(-105%);transition:transform .2s ease;box-shadow:var(--shadow);padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+    body.side-open aside{transform:none}
+    body.side-open .sidescrim{display:block}
+    .menubtn{display:grid}
+    .tabbar{display:flex} .fab{display:grid}
+    .newbtn{display:none}
+    .top{padding:12px 16px 10px} .content{padding:4px 16px 110px} .content.tl{padding-bottom:80px}
+    .titlerow h1{font-size:20px}
+    .titlerow .search{width:112px}
+    .vtabs{order:5}
+    .toast{bottom:calc(76px + env(safe-area-inset-bottom))}
     .board{grid-template-columns:repeat(4,240px);overflow-x:auto}
   }
 </style>
@@ -260,8 +293,9 @@
   <main id="main">
     <div class="top" id="top">
       <div class="titlerow">
+        <button class="menubtn" id="menuBtn" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
         <h1 id="vtitle">Today</h1><span class="sub" id="vsub"></span><div class="vtabs" id="vtabs"></div>
-        <input class="search" id="search" placeholder="Search…" autocomplete="off">
+        <div class="search-wrap"><span class="ico"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg></span><input class="search" id="search" placeholder="Search  /" autocomplete="off"></div>
       </div>
       <form class="quick" id="quick">
         <input id="qa" placeholder="Add a task — e.g. Order 5mm acrylic tmr #cradle !1" autocomplete="off">
@@ -287,6 +321,9 @@
   </form>
 </div>
 
+<nav class="tabbar" id="tabbar"></nav>
+<button class="fab" id="fab" aria-label="New task"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
+<div class="sidescrim" id="sidescrim"></div>
 <div class="scrim" id="scrim"></div>
 <div class="drawer" id="drawer"></div>
 <div class="toast" id="toast"></div>
@@ -300,9 +337,21 @@
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const STATUSES = [['todo','To do'],['doing','Doing'],['waiting','Waiting'],['done','Done']];
   const VIEWS = {
-    today:{t:'Today',i:'☀'}, upcoming:{t:'Upcoming',i:'▦'}, all:{t:'All tasks',i:'≡'}, timeline:{t:'Timeline',i:'▤'},
-    waiting:{t:'Waiting on',i:'⏳'}, board:{t:'Board',i:'▥'}, done:{t:'Completed',i:'✓'}
+    today:{t:'Today'}, upcoming:{t:'Upcoming'}, all:{t:'All tasks'}, timeline:{t:'Timeline'}, board:{t:'Board'},
+    waiting:{t:'Waiting on'}, done:{t:'Completed'}   // reached from the tabs on "All tasks"
   };
+  const NAV = ['today','upcoming','all','timeline','board'];
+  const navOf = v => (v === 'waiting' || v === 'done') ? 'all' : v;
+  const ICON = {
+    today:'<circle cx="8" cy="8" r="2.8"/><path d="M8 1.6v1.6M8 12.8v1.6M1.6 8h1.6M12.8 8h1.6M3.5 3.5l1.1 1.1M11.4 11.4l1.1 1.1M3.5 12.5l1.1-1.1M11.4 4.6l1.1-1.1"/>',
+    upcoming:'<rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.6h12M5.3 1.6v2.8M10.7 1.6v2.8"/>',
+    all:'<path d="M6 4h8M6 8h8M6 12h8"/><path d="M2.4 4h.2M2.4 8h.2M2.4 12h.2" stroke-width="2.2"/>',
+    timeline:'<path d="M2.5 3.5h6M5.5 8h8M3.5 12.5h5" stroke-width="2.4"/>',
+    board:'<rect x="2" y="2.5" width="3.4" height="11" rx="1"/><rect x="6.3" y="2.5" width="3.4" height="7" rx="1"/><rect x="10.6" y="2.5" width="3.4" height="9" rx="1"/>',
+    plus:'<path d="M8 3v10M3 8h10"/>',
+    out:'<path d="M6 2.5H3.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1H6M10.5 11 13.5 8l-3-3M13.5 8H6"/>'
+  };
+  const ico = k => `<span class="ico"><svg viewBox="0 0 16 16">${ICON[k]}</svg></span>`;
   const D = document.getElementById('drawer');
 
   // ---------- dates ----------
@@ -548,17 +597,22 @@
   function render(){ renderSide(); renderMain(); }
 
   function renderSide(){
-    const c = counts();
-    const navBtn = (v) => `<button data-view="${v}" class="${state.view===v && !state.project ? 'on':''}"><span class="ico">${VIEWS[v].i}</span>${VIEWS[v].t}<span class="ct ${v==='today'&&c.overdue?'hot':''}">${c[v]||''}</span></button>`;
+    const c = counts(), cur = state.project ? null : navOf(state.view);
+    const badge = v => v === 'today' && c.today ? `<span class="ct ${c.overdue ? 'badge' : ''}" title="${c.overdue ? c.overdue + ' overdue' : ''}">${c.today}</span>` : '';
     const ps = projects();
+    const online = state.mode === 'db' && syncState === 'ok';
     $('#side').innerHTML = `
       <div class="brand"><span class="logo">✓</span>Tasks</div>
-      <button class="newbtn" id="newTask" title="New task (Shift+N)">＋ New task</button>
-      <div class="nav"><h4>Views</h4>${['today','upcoming','all','timeline','waiting','board','done'].map(navBtn).join('')}</div>
+      <button class="newbtn" id="newTask" title="New task (Shift+N)">${ico('plus')}New task<kbd>⇧N</kbd></button>
+      <div class="nav">${NAV.map(v => `<button data-view="${v}" class="${cur === v ? 'on' : ''}">${ico(v)}${VIEWS[v].t}${badge(v)}</button>`).join('')}</div>
       <div class="nav"><h4>Projects</h4>${ps.length ? ps.map(([p,n]) =>
-        `<button data-project="${esc(p)}" class="${state.project===p?'on':''}"><span class="dot" style="background:${projColor(p)}"></span>${esc(p)}<span class="ct">${n||''}</span></button>`).join('')
-        : `<div style="padding:2px 10px;color:var(--faint);font-size:12px">Add <code style="font-family:var(--mono)">#name</code> to a task to make a project</div>`}</div>
-      <div class="status ${state.mode==='db' && syncState==='ok' ? 'db' : 'local'}"><i></i><span title="${esc(state.email||'')}">${state.mode!=='db' ? 'Connecting…' : syncState==='ok' ? 'Synced' : 'Offline — retrying'}</span>${state.mode==='db' ? '<button class="signout" id="signout">Sign out</button>' : ''}</div>`;
+        `<button data-project="${esc(p)}" class="${state.project===p?'on':''}"><span class="ico"><span class="dot" style="background:${projColor(p)}"></span></span>${esc(p)}<span class="ct">${n||''}</span></button>`).join('')
+        : `<div class="phint">Type <code>#name</code> in a task to group it into a project.</div>`}</div>
+      ${state.mode === 'db' ? `<div class="acct ${online ? '' : 'off'}"><span class="av">${esc((state.email||'?')[0])}<i></i></span>
+        <span class="em"><b title="${esc(state.email||'')}">${esc(state.email||'')}</b><span>${online ? 'All changes synced' : 'Offline — will retry'}</span></span>
+        <button id="signout" title="Sign out">${'<span class="ico"><svg viewBox="0 0 16 16">' + ICON.out + '</svg></span>'}</button></div>`
+        : `<div class="acct off"><span class="em"><span>Connecting…</span></span></div>`}`;
+    $('#tabbar').innerHTML = NAV.map(v => `<button data-view="${v}" class="${cur === v ? 'on' : ''}">${ico(v)}${v === 'all' ? 'All' : VIEWS[v].t}${v === 'today' && c.overdue ? `<span class="tb">${c.overdue}</span>` : ''}</button>`).join('');
   }
 
   function taskRow(t, opts = {}){
@@ -580,12 +634,15 @@
 
   function renderMain(){
     const T = todayStr();
-    const title = state.project ? '# ' + state.project : VIEWS[state.view].t;
+    const title = state.project ? '# ' + state.project : VIEWS[navOf(state.view)].t;
     $('#vtitle').textContent = title;
     const now = new Date();
     $('#vsub').textContent = state.view === 'today' && !state.project ? `${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][now.getDay()]}, ${now.getDate()} ${MON[now.getMonth()]}` : '';
+    const cc = counts();
     $('#vtabs').innerHTML = state.project ? [['all','List'],['timeline','Timeline'],['board','Board']].map(([v,l]) =>
-      `<button data-v="${v}" class="${state.view===v || (v==='all' && !['timeline','board'].includes(state.view)) ? 'on':''}">${l}</button>`).join('') : '';
+      `<button data-v="${v}" class="${state.view===v || (v==='all' && !['timeline','board'].includes(state.view)) ? 'on':''}">${l}</button>`).join('')
+      : navOf(state.view) === 'all' ? [['all','Open',cc.all],['waiting','Waiting',cc.waiting],['done','Completed',cc.done]].map(([v,l,n]) =>
+      `<button data-v="${v}" class="${state.view===v ? 'on':''}">${l}${n ? ` <span style="opacity:.55;font-family:var(--mono);font-size:11px">${n}</span>` : ''}</button>`).join('') : '';
     const el = $('#content');
     el.classList.toggle('tl', state.view === 'timeline');
     if (state.mode === 'loading') { el.innerHTML = `<div class="connecting">Loading your tasks…</div>`; return; }
@@ -935,7 +992,12 @@
   function banner(msg){ $('#bannerSlot').innerHTML = msg ? `<div class="banner">${esc(msg)}</div>` : ''; }
   function renderHint(){
     const v = $('#qa').value;
-    if (!v.trim()) { $('#hint').innerHTML = `<code>#project</code><code>!1</code> high <code>!2</code> <code>!3</code><code>today</code><code>tmr</code><code>fri</code><code>25/12</code><code>in3d</code>`; return; }
+    if (!v.trim()) {
+      $('#hint').innerHTML = document.activeElement === $('#qa')
+        ? `<span>Shortcuts:</span><code>tmr</code><code>fri</code><code>25/12</code><code>in3d</code><span>for dates ·</span><code>#project</code><span>·</span><code>!1</code><span>high priority · or</span><button type="button" id="hintMore" style="background:none;border:0;padding:0;color:var(--accent);font-size:12px">open the full form</button>`
+        : '';
+      return;
+    }
     const p = parseQuick(v), bits = [];
     if (p.due) bits.push(`<span class="chip">◷ ${dueLabel(p.due).txt}</span>`);
     else if (state.view === 'today' && !state.project) bits.push(`<span class="chip">◷ Today</span>`);
@@ -954,12 +1016,20 @@
   // ---------- events ----------
   $('#side').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
+    sideOpen(false);
     if (b.id === 'signout') { sb.auth.signOut(); return; }
     if (b.id === 'newTask') { openCreate(); return; }
     if (b.dataset.view) go(b.dataset.view);
     if (b.dataset.project) go(['timeline','board'].includes(state.view) ? state.view : 'all', b.dataset.project);
   });
   $('#vtabs').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) go(b.dataset.v, state.project); });
+  const sideOpen = on => document.body.classList.toggle('side-open', on);
+  $('#menuBtn').addEventListener('click', () => sideOpen(true));
+  $('#sidescrim').addEventListener('click', () => sideOpen(false));
+  $('#tabbar').addEventListener('click', e => { const b = e.target.closest('[data-view]'); if (b) go(b.dataset.view); });
+  $('#fab').addEventListener('click', () => openCreate());
+  $('#hint').addEventListener('mousedown', e => { if (e.target.id === 'hintMore') { e.preventDefault(); $('#qmore').click(); } });
+  $('#qa').addEventListener('focus', renderHint); $('#qa').addEventListener('blur', () => setTimeout(renderHint, 150));
   $('#scrim').addEventListener('click', () => closeDrawer());
   $('#quick').addEventListener('submit', e => { e.preventDefault(); const v = $('#qa').value; if (!v.trim()) return; addTask(v); $('#qa').value = ''; renderHint(); });
   $('#qmore').addEventListener('click', () => {
