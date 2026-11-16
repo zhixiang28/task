@@ -146,9 +146,31 @@
   .seg button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);font-weight:600}
   .subs .s{display:flex;align-items:center;gap:8px;padding:4px 0}
   .subs .s input[type=checkbox]{width:16px;height:16px;accent-color:var(--ok)}
-  .subs .s span{flex:1} .subs .s.d span{text-decoration:line-through;color:var(--faint)}
+  .subs .s .stxt{flex:1;min-width:0;word-wrap:break-word} .subs .s.d .stxt{text-decoration:line-through;color:var(--faint)}
   .subs .s .rm{background:none;border:0;color:var(--faint);opacity:0}
   .subs .s:hover .rm{opacity:1}
+  .subs .sdate{flex:none;border:1px dashed var(--line);background:none;border-radius:99px;padding:1px 9px;font-size:11.5px;color:var(--faint);white-space:nowrap}
+  .subs .sdate:hover{border-color:var(--accent);color:var(--accent)}
+  .subs .sdate.set{border-style:solid;color:var(--muted);background:var(--bg)}
+  .subs .sdate.over{color:var(--p1);border-color:var(--p1)}
+  .subs .sdate.open{border-color:var(--accent);color:var(--accent)}
+  .subs .s:not(:hover) .sdate:not(.set):not(.open){opacity:.55}
+  .sdrow{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:2px 0 8px 24px;padding:8px 10px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+  .sdrow label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted);margin:0;text-transform:none;letter-spacing:0;font-weight:400}
+  .field .sdrow input{width:auto;padding:4px 7px;background:var(--panel)}
+  .sdrow .qchips{margin:0;width:100%}
+  .gsub .gl .gn{padding-left:34px;color:var(--muted)}
+  .gsub .gl .gn .sk{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--faint);display:grid;place-items:center;font-size:9px;color:#fff;flex:none;cursor:pointer}
+  .gsub .gl .gn .sk.on{background:var(--ok);border-color:var(--ok)}
+  .gsub{height:30px} .gsub .bar{top:9px;height:12px;border-radius:4px;opacity:.75}
+  .gsub .bar .bl{line-height:12px;font-size:11px;color:var(--muted)}
+  .gsub .bar.done{opacity:.35}
+  .gsub .hintx{line-height:30px}
+  .tcaret{width:14px;flex:none;color:var(--muted);font-size:9px;text-align:center;cursor:pointer;border-radius:3px}
+  .tcaret:hover{background:rgba(127,127,120,.15);color:var(--ink)}
+  .tcaret.none{visibility:hidden}
+  .num.derived{font-style:italic;opacity:.75}
+  .sumbar.task{opacity:.4;top:14px;height:7px}
   .subadd{display:flex;gap:6px;margin-top:4px}
   .subadd input{flex:1}
   .dfoot{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);align-items:center;font-size:12px;color:var(--faint)}
@@ -699,7 +721,7 @@
   const ZOOMS = { day:{dw:34, l:'Days'}, week:{dw:14, l:'Weeks'}, month:{dw:4, l:'Months'} };
   const gp = (() => { try { return JSON.parse(localStorage.getItem('tm.gantt')) || {}; } catch(e){ return {}; } })();
   const G = { zoom: ZOOMS[gp.zoom] ? gp.zoom : 'day', showDone: !!gp.showDone, group: gp.group !== false,
-    collapsed: new Set(gp.collapsed || []), start: null, dw: 34, days: 0, didScroll: false };
+    collapsed: new Set(gp.collapsed || []), subOpen: new Map(), start: null, dw: 34, days: 0, didScroll: false };
   const saveG = () => { try { localStorage.setItem('tm.gantt', JSON.stringify({ zoom:G.zoom, showDone:G.showDone, group:G.group, collapsed:[...G.collapsed] })); } catch(e){} };
   const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const span = t => { const s = t.start || t.due, e = t.due || t.start; if (!s) return null; return s <= e ? {s, e} : {s:e, e:s}; };
@@ -714,7 +736,7 @@
     const T = todayStr();
     const list = ts.filter(t => G.showDone || t.status !== 'done');
     let lo = parseYmd(T), hi = parseYmd(T);
-    for (const t of list) { const sp = span(t); if (!sp) continue; const a = parseYmd(sp.s), b = parseYmd(sp.e); if (a < lo) lo = a; if (b > hi) hi = b; }
+    for (const t of list) for (const o of [t, ...(t.subtasks || [])]) { const sp = span(o); if (!sp) continue; const a = parseYmd(sp.s), b = parseYmd(sp.e); if (a < lo) lo = a; if (b > hi) hi = b; }
     const pad = { day:[14,45], week:[28,100], month:[60,200] }[G.zoom];
     lo = addDays(lo, -pad[0]); lo = addDays(lo, -((lo.getDay() + 6) % 7));   // start on a Monday
     hi = addDays(hi, pad[1]);
@@ -785,23 +807,50 @@
       <div class="gr"><div class="gh1">${top}</div><div class="gh2">${bot}</div></div></div>`;
   }
 
+  // checklist rows open by default once any step has a date
+  const subsOpen = t => G.subOpen.has(t.id) ? G.subOpen.get(t.id) : (t.subtasks || []).some(x => x.start || x.due);
+  const subSpan = t => {   // range covered by a task's dated checklist steps
+    const sps = (t.subtasks || []).map(span).filter(Boolean); if (!sps.length) return null;
+    return { s: sps.reduce((m, x) => x.s < m ? x.s : m, sps[0].s), e: sps.reduce((m, x) => x.e > m ? x.e : m, sps[0].e) };
+  };
+  const rangeTxt = o => { const sp = span(o); if (!sp) return ''; if (sp.s === sp.e) return fmtD(sp.s);
+    const a = parseYmd(sp.s), b = parseYmd(sp.e);
+    return a.getMonth() === b.getMonth() ? `${a.getDate()}–${b.getDate()} ${MON[b.getMonth()]}` : `${fmtD(sp.s)} – ${fmtD(sp.e)}`; };
+
   function gRow(t, todayX){
-    const sp = span(t), done = t.status === 'done';
+    const own = span(t), done = t.status === 'done', subs = t.subtasks || [];
+    const der = own ? null : subSpan(t), sp = own || der, op = subs.length && subsOpen(t);
     const pri = t.priority ? `var(--p${4 - t.priority})` : 'var(--line)';
-    const left = `<div class="gl" data-id="${t.id}" title="${esc(t.title)} — click to edit"><div class="gn"><span class="dot" style="background:${pri}"></span><span class="${done?'strike':''}">${esc(t.title)}</span></div>
-      <div class="num">${sp ? fmtD(sp.s) : '—'}</div><div class="num">${sp ? fmtD(sp.e) : '—'}</div><div class="num">${sp ? durDays(sp.s, sp.e) + 'd' : ''}</div></div>`;
+    const nc = der ? 'num derived' : 'num';
+    const left = `<div class="gl" data-id="${t.id}" title="${esc(t.title)} — click to edit"><div class="gn" style="padding-left:6px"><span class="tcaret ${subs.length ? '' : 'none'}" data-tog="${t.id}" title="${op ? 'Hide' : 'Show'} checklist">${op ? '▼' : '▶'}</span><span class="dot" style="background:${pri}"></span><span class="${done?'strike':''}">${esc(t.title)}</span></div>
+      <div class="${nc}">${sp ? fmtD(sp.s) : '—'}</div><div class="${nc}">${sp ? fmtD(sp.e) : '—'}</div><div class="${nc}">${sp ? durDays(sp.s, sp.e) + 'd' : ''}</div></div>`;
     let right;
-    if (sp) {
-      const x = dIdx(sp.s) * G.dw, w = durDays(sp.s, sp.e) * G.dw;
-      const subs = t.subtasks || [];
+    if (own) {
+      const x = dIdx(own.s) * G.dw, w = durDays(own.s, own.e) * G.dw;
       const pct = done ? 100 : subs.length ? Math.round(subs.filter(s => s.done).length / subs.length * 100) : 0;
-      const over = !done && sp.e < todayStr();
+      const over = !done && own.e < todayStr();
       right = `<div class="gr" data-id="${t.id}"><div class="bar ${done?'done':''} ${over?'over':''}" style="left:${x}px;width:${w}px;--bc:${t.project ? projColor(t.project) : 'var(--accent)'}">
         ${pct ? `<div class="pg" style="width:${pct}%"></div>` : ''}<div class="hl"></div><div class="hr"></div><span class="bl">${esc(t.title)}${pct && !done ? ` · ${pct}%` : ''}</span></div></div>`;
+    } else if (der) {
+      // no dates of its own: show the span of its checklist like a summary task
+      right = `<div class="gr" data-id="${t.id}" data-nocreate="1"><div class="sumbar task" style="left:${dIdx(der.s) * G.dw}px;width:${durDays(der.s, der.e) * G.dw}px"></div></div>`;
     } else {
       right = `<div class="gr unsched" data-id="${t.id}"><span class="hintx" style="left:${todayX + 8}px">Not scheduled — click or drag here to set dates</span></div>`;
     }
-    return `<div class="grow ${state.openId === t.id ? 'sel' : ''}">${left}${right}</div>`;
+    let html = `<div class="grow ${state.openId === t.id ? 'sel' : ''}">${left}${right}</div>`;
+    if (op) html += subs.map((x, i) => gSubRow(t, x, i, todayX)).join('');
+    return html;
+  }
+
+  function gSubRow(t, x, i, todayX){
+    const sp = span(x), color = t.project ? projColor(t.project) : 'var(--accent)';
+    const left = `<div class="gl" data-id="${t.id}" title="${esc(x.t)} — click to edit the task"><div class="gn"><span class="sk ${x.done ? 'on' : ''}" data-subdone="${i}" data-tid="${t.id}" title="${x.done ? 'Mark not done' : 'Mark done'}">${x.done ? '✓' : ''}</span><span class="${x.done ? 'strike' : ''}">${esc(x.t)}</span></div>
+      <div class="num">${sp ? fmtD(sp.s) : ''}</div><div class="num">${sp ? fmtD(sp.e) : ''}</div><div class="num">${sp ? durDays(sp.s, sp.e) + 'd' : ''}</div></div>`;
+    const over = sp && !x.done && sp.e < todayStr();
+    const right = sp
+      ? `<div class="gr" data-id="${t.id}" data-sub="${i}"><div class="bar ${x.done ? 'done' : ''} ${over ? 'over' : ''}" style="left:${dIdx(sp.s) * G.dw}px;width:${durDays(sp.s, sp.e) * G.dw}px;--bc:${color}"><div class="hl"></div><div class="hr"></div><span class="bl">${esc(x.t)}</span></div></div>`
+      : `<div class="gr unsched" data-id="${t.id}" data-sub="${i}"><span class="hintx" style="left:${todayX + 8}px">No date — click or drag to schedule this step</span></div>`;
+    return `<div class="grow gsub">${left}${right}</div>`;
   }
 
   function gGroupRow(k, arr){
@@ -851,6 +900,7 @@
   }
   function openDrawer(id){
     if (state.creating) { state.creating = false; state.draft = null; D.classList.remove('open'); dropCreateLook(); $('#scrim').classList.remove('show'); }
+    if (state.openId !== id) state.subOpen = null;
     state.openId = id; renderDrawer(); D.classList.add('open'); renderMain();
   }
   function openCreate(pre = {}){
@@ -859,7 +909,7 @@
     state.draft = { id:uid(), title:'', project:state.project || '', priority:0, due: tv ? todayStr() : null, start:null,
       status: state.view === 'waiting' && !state.project ? 'waiting' : 'todo', notes:'', waitingOn:'', subtasks:[], star:false,
       createdAt:Date.now(), doneAt:null, ...pre };
-    state.creating = true; D.dataset.for = '';
+    state.creating = true; state.subOpen = null; D.dataset.for = '';
     D.style.transition = 'none'; D.classList.add('create'); void D.offsetWidth; D.style.transition = '';
     renderDrawer();
     D.classList.add('open'); $('#scrim').classList.add('show');
@@ -932,8 +982,15 @@
         <div class="field"><label>Status</label><div class="seg" id="f_status">${STATUSES.map(([s,l]) => `<button type="button" data-s="${s}" class="${(t.status||'todo')===s?'on':''}">${l}</button>`).join('')}</div></div>
         <div class="field" id="waitField" style="${t.status==='waiting'?'':'display:none'}"><label>Waiting on</label><input id="f_wait" placeholder="e.g. Supplier quote, boss approval" value="${esc(t.waitingOn||'')}"></div>
         <div class="field"><label>Project</label><input id="f_proj" list="projList" placeholder="Type a new project, or pick one below" value="${esc(t.project||'')}"><datalist id="projList">${projOpts}</datalist>${prow}</div>
-        <div class="field"><label>Checklist</label><div class="subs" id="subs">${(t.subtasks||[]).map((s,i)=>`<div class="s ${s.done?'d':''}"><input type="checkbox" data-i="${i}" ${s.done?'checked':''}><span>${esc(s.t)}</span><button class="rm" data-rm="${i}" title="Remove">×</button></div>`).join('')}</div>
-          <form class="subadd" id="subadd"><input id="f_sub" placeholder="Add a step and press Enter…" autocomplete="off"><button class="btn" type="submit">Add</button></form></div>
+        <div class="field"><label>Checklist</label><div class="subs" id="subs">${(t.subtasks||[]).map((s,i) => {
+            const has = !!(s.start || s.due), over = has && !s.done && span(s).e < T, isOpen = state.subOpen === i;
+            return `<div class="s ${s.done?'d':''}"><input type="checkbox" data-i="${i}" ${s.done?'checked':''}><span class="stxt">${esc(s.t)}</span>
+              <button type="button" class="sdate ${has?'set':''} ${over?'over':''} ${isOpen?'open':''}" data-sd="${i}" title="Set dates for this step">${has ? '◷ ' + rangeTxt(s) : '＋ Date'}</button>
+              <button type="button" class="rm" data-rm="${i}" title="Remove">×</button></div>
+            ${isOpen ? `<div class="sdrow"><label>Start<input type="date" data-ss="${i}" value="${s.start||''}"></label><label>Finish<input type="date" data-se="${i}" value="${s.due||''}"></label>
+              <div class="qchips">${qd.slice(0,4).map(([l, v]) => `<button type="button" data-sq="${i}" data-v="${v}" class="${s.due===v && !s.start?'on':''}">${l}</button>`).join('')}${has ? `<button type="button" data-sq="${i}" data-v="">✕ Clear</button>` : ''}</div></div>` : ''}`;
+          }).join('')}</div>
+          <form class="subadd" id="subadd"><input id="f_sub" placeholder="Add a step — e.g. Cut panels fri" autocomplete="off"><button class="btn" type="submit">Add</button></form></div>
         <div class="field"><label>Notes</label><textarea id="f_notes" placeholder="Links, part numbers, measurements…">${esc(t.notes||'')}</textarea></div>
       </div>
       <div class="dfoot">${c
@@ -1050,6 +1107,10 @@
     const z = e.target.closest('[data-z]');
     if (z) { G.zoom = z.dataset.z; G.didScroll = false; saveG(); renderMain(); return; }
     if (e.target.closest('button[data-g="today"]')) { scrollToToday(true); return; }
+    const tg = e.target.closest('[data-tog]');
+    if (tg) { const t = state.tasks.get(tg.dataset.tog); if (t) { G.subOpen.set(t.id, !subsOpen(t)); renderMain(); } return; }
+    const sd = e.target.closest('[data-subdone]');
+    if (sd) { const t = state.tasks.get(sd.dataset.tid); if (t) { const subs = t.subtasks.map(x => ({...x})); subs[+sd.dataset.subdone].done = !subs[+sd.dataset.subdone].done; Store.put({ ...t, subtasks:subs }); if (state.openId === t.id) renderDrawer(); } return; }
     const gl = e.target.closest('.gl');
     if (gl) {
       if (gl.dataset.id) { openDrawer(gl.dataset.id); return; }
@@ -1087,10 +1148,12 @@
     if (e.button) return;
     const gr = e.target.closest('.gr[data-id]'); if (!gr) return;
     const t = state.tasks.get(gr.dataset.id); if (!t) return;
-    const bar = e.target.closest('.bar'), sp = span(t);
+    const si = gr.dataset.sub != null ? +gr.dataset.sub : null;
+    const obj = si == null ? t : (t.subtasks || [])[si]; if (!obj) return;
+    const bar = e.target.closest('.bar'), sp = span(obj);
     let mode;
     if (bar) mode = e.target.closest('.hl') ? 'l' : e.target.closest('.hr') ? 'r' : 'move';
-    else if (!sp) mode = 'create';
+    else if (!sp && !gr.dataset.nocreate) mode = 'create';
     else return;
     if (bar) e.preventDefault();
     const rect = gr.getBoundingClientRect();
@@ -1100,7 +1163,7 @@
       el = document.createElement('div'); el.className = 'bar ghost'; el.style.display = 'none';
       gr.appendChild(el);
     }
-    gdrag = { id:t.id, mode, x0:e.clientX, rect, day0, moved:false, el, gr, pid:e.pointerId,
+    gdrag = { id:t.id, si, mode, x0:e.clientX, rect, day0, moved:false, el, gr, pid:e.pointerId,
       s0: sp ? dIdx(sp.s) : day0, e0: sp ? dIdx(sp.e) : day0, s: sp ? dIdx(sp.s) : day0, e: sp ? dIdx(sp.e) : day0 };
     if (bar) { try { gr.setPointerCapture(e.pointerId); } catch(_){} }
   });
@@ -1124,11 +1187,16 @@
     if (!g.moved && g.mode !== 'create') { pendingRender = false; openDrawer(g.id); return; }
     const start = ymd(addDays(G.start, g.s)), due = ymd(addDays(G.start, g.e));
     pendingRender = false;
-    if (start === t.start && due === t.due) { renderMain(); return; }
-    const n = { ...t, start, due };
-    Store.put(n);
+    const obj = g.si == null ? t : (t.subtasks || [])[g.si];
+    if (!obj || (start === obj.start && due === obj.due)) { renderMain(); return; }
+    const withDates = (task, o, st, du) => g.si == null ? { ...task, start:st, due:du }
+      : { ...task, subtasks: task.subtasks.map((x, i) => i === g.si ? { ...x, start:st, due:du } : { ...x }) };
+    Store.put(withDates(t, obj, start, due));
     if (state.openId === g.id) renderDrawer();
-    toast(`${t.title}: ${fmtD(start)} → ${fmtD(due)}`, 'Undo', () => { const c = state.tasks.get(g.id); if (c) Store.put({ ...c, start:t.start || null, due:t.due || null }); if (state.openId === g.id) renderDrawer(); });
+    toast(`${obj.t || obj.title}: ${fmtD(start)} → ${fmtD(due)}`, 'Undo', () => {
+      const c = state.tasks.get(g.id); if (!c) return;
+      if (g.si != null && !(c.subtasks || [])[g.si]) return;
+      Store.put(withDates(c, obj, obj.start || null, obj.due || null)); if (state.openId === g.id) renderDrawer(); });
   }
   document.addEventListener('pointerup', e => endDrag(e, false));
   document.addEventListener('pointercancel', e => endDrag(e, true));
@@ -1148,7 +1216,14 @@
     const pj = e.target.closest('[data-proj]');
     if (pj) { const p = pj.dataset.proj; edit({ project: t.project === p ? '' : p }); renderDrawer(); return; }
     const rm = e.target.closest('[data-rm]');
-    if (rm) { const subs = t.subtasks.map(s=>({...s})); subs.splice(+rm.dataset.rm, 1); edit({ subtasks:subs }); renderDrawer(); return; }
+    if (rm) { const subs = t.subtasks.map(s=>({...s})); subs.splice(+rm.dataset.rm, 1); state.subOpen = null; edit({ subtasks:subs }); renderDrawer(); return; }
+    const sdb = e.target.closest('[data-sd]');
+    if (sdb) { const i = +sdb.dataset.sd; state.subOpen = state.subOpen === i ? null : i; renderDrawer(); return; }
+    const sq = e.target.closest('[data-sq]');
+    if (sq) { const i = +sq.dataset.sq, v = sq.dataset.v, subs = t.subtasks.map(x=>({...x}));
+      subs[i] = { ...subs[i], ...(v ? { start:null, due:v } : { start:null, due:null }) };
+      if (!v) state.subOpen = null;
+      edit({ subtasks:subs }); renderDrawer(); return; }
     if (e.target.id === 'dup') {
       flushTyping();
       const s = state.tasks.get(state.openId);
@@ -1169,6 +1244,11 @@
     if (el.id === 'f_due') { edit(schedPatch(t, 'due', el.value)); renderDrawer(); }
     if (el.id === 'f_dur') { if (el.value === '') return; edit(schedPatch(t, 'dur', el.value)); renderDrawer(); }
     if (el.id === 'f_proj') { edit({ project: el.value.trim().replace(/^#/, '') }); renderDrawer(); }
+    if (el.dataset.ss != null || el.dataset.se != null) {
+      const i = +(el.dataset.ss ?? el.dataset.se), subs = t.subtasks.map(x=>({...x}));
+      subs[i] = { ...subs[i], ...schedPatch(subs[i], el.dataset.ss != null ? 'start' : 'due', el.value) };
+      edit({ subtasks:subs }); renderDrawer(); return;
+    }
     if (el.matches('#subs input[type=checkbox]')) { const subs = t.subtasks.map(s=>({...s})); subs[+el.dataset.i].done = el.checked; edit({ subtasks:subs }); renderDrawer(); }
   });
   D.addEventListener('input', e => {
@@ -1185,7 +1265,10 @@
     if (e.target.id !== 'subadd') return; e.preventDefault();
     const inp = $('#f_sub'), v = inp.value.trim(); if (!v) return;
     const task = cur(); if (!task) return;
-    edit({ subtasks:[...(task.subtasks||[]).map(s=>({...s})), { t:v, done:false }] });
+    // "Cut panels fri" → step "Cut panels" due Friday
+    const q = parseQuick(v), step = { t: q.title || v, done:false };
+    if (q.due && q.title) step.due = q.due;
+    edit({ subtasks:[...(task.subtasks||[]).map(s=>({...s})), step] });
     renderDrawer(); $('#f_sub').focus();
   });
   D.addEventListener('keydown', e => {
